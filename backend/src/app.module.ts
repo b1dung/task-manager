@@ -16,6 +16,7 @@ import { ExportModule } from '@/modules/export/export.module';
 import { InvitesModule } from '@/modules/invites/invites.module';
 import { LabelsModule } from '@/modules/labels/labels.module';
 import { MembersModule } from '@/modules/members/members.module';
+import { MyTasksModule } from '@/modules/my-tasks/my-tasks.module';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { ProjectsModule } from '@/modules/projects/projects.module';
 import { ReportsModule } from '@/modules/reports/reports.module';
@@ -77,6 +78,7 @@ import { WebsocketModule } from '@/modules/websocket/websocket.module';
     ExportModule,
     InvitesModule,
     ArchivedModule,
+    MyTasksModule,
     WebsocketModule,
   ],
   controllers: [AppController],

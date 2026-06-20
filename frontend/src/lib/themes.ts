@@ -11,14 +11,14 @@ export interface ThemeMeta {
 export const THEMES: ThemeMeta[] = [
   {
     key: 'midnight',
-    label: 'Midnight',
+    label: 'Dark',
     primary: '#4f8ef7',
     secondary: '#6da8ff',
     dark: true,
   },
   {
     key: 'mint',
-    label: 'Mint',
+    label: 'Classic',
     primary: '#16b8a6',
     secondary: '#3dd6c0',
     dark: false,

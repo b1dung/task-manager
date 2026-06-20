@@ -5,10 +5,13 @@ import { Bell, BellOff, CheckCheck } from 'lucide-react'
 import { notificationsApi, notificationLink, type Notification } from '@/api/notifications'
 import { Avatar, Button, EmptyState, Skeleton } from '@/components/ui'
 import { formatRelative, cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { DEFAULT_TIMEZONE, formatZonedDateTime } from '@/lib/timezones'
 
 type Filter = 'all' | 'unread'
 
 export function NotificationsPage() {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [filter, setFilter] = useState<Filter>('all')
@@ -99,7 +102,9 @@ export function NotificationsPage() {
                       {n.context.taskTitle}
                     </p>
                   )}
-                  <p className="text-xs text-fg-subtle mt-0.5">{formatRelative(n.createdAt)}</p>
+                  <p className="text-xs text-fg-subtle mt-0.5" title={formatRelative(n.createdAt, timezone)}>
+                    {formatZonedDateTime(n.createdAt, timezone)}
+                  </p>
                 </div>
                 {!n.readAt && <span className="w-2 h-2 rounded-full bg-accent mt-1.5 shrink-0" />}
               </button>

@@ -18,6 +18,8 @@ import {
 import { notificationsApi, notificationLink, type Notification } from '@/api/notifications'
 import { Avatar, Button, Skeleton } from '@/components/ui'
 import { formatRelative, cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { DEFAULT_TIMEZONE, formatZonedDateTime } from '@/lib/timezones'
 
 const TYPE_ICON: Record<string, ReactNode> = {
   task_created: <FilePlus2 className="w-3.5 h-3.5" />,
@@ -32,6 +34,7 @@ const TYPE_ICON: Record<string, ReactNode> = {
 }
 
 export function NotificationsDropdown() {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
@@ -156,7 +159,9 @@ export function NotificationsDropdown() {
                             {n.context.taskTitle}
                           </p>
                         )}
-                        <p className="text-xs text-fg-subtle mt-0.5">{formatRelative(n.createdAt)}</p>
+                        <p className="text-xs text-fg-subtle mt-0.5" title={formatRelative(n.createdAt, timezone)}>
+                          {formatZonedDateTime(n.createdAt, timezone)}
+                        </p>
                       </div>
                       {!n.readAt && <span className="w-2 h-2 rounded-full bg-accent mt-1.5 shrink-0" />}
                       {!linkable && <span className="sr-only">không liên kết</span>}

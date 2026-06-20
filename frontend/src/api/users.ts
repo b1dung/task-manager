@@ -9,6 +9,9 @@ export interface AppUser {
   roleId: string | null
   isActive: boolean
   createdAt: string
+  language: 'vi' | 'en'
+  appearance: 'light' | 'midnight' | 'mint'
+  timezone: import('@/lib/timezones').UserTimezone
 }
 
 export interface CreateUserDto {
@@ -24,6 +27,9 @@ export interface UpdateUserDto {
   role?: string
   roleId?: string | null
   isActive?: boolean
+  language?: 'vi' | 'en'
+  appearance?: 'light' | 'midnight' | 'mint'
+  timezone?: import('@/lib/timezones').UserTimezone
 }
 
 export const usersApi = {
@@ -48,6 +54,9 @@ export const usersApi = {
       .then((r) => r.data.data),
 
   remove: (id: string) => apiClient.delete(`/users/${id}`),
+
+  changePassword: (id: string, dto: { currentPassword: string; newPassword: string }) =>
+    apiClient.patch(`/users/${id}/password`, dto),
 
   uploadAvatar: (id: string, file: File) => {
     const form = new FormData()

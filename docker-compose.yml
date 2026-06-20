@@ -54,6 +54,8 @@ services:
       JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-dev_refresh_secret}
     volumes:
       - ./backend:/app
+      # Backend TypeScript aliases resolve @shared/* from ../shared/dist.
+      - ./shared:/shared
       - /app/node_modules
     depends_on:
       postgres:
@@ -73,6 +75,7 @@ services:
     environment:
       VITE_API_URL: http://localhost:3000/api/v1
       VITE_WS_URL: http://localhost:3000
+      VITE_PROXY_TARGET: http://backend:3000
     volumes:
       - ./frontend:/app
       - /app/node_modules

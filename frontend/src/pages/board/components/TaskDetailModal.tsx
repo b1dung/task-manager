@@ -33,6 +33,7 @@ import { usePermissions } from '@/hooks/usePermissions'
 import { useTaskStore } from '@/stores/useTaskStore'
 import { useToast } from '@/hooks/useToast'
 import { cn, formatRelative } from '@/lib/utils'
+import { DEFAULT_TIMEZONE, formatZonedDate, formatZonedDateTime } from '@/lib/timezones'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1490,6 +1491,7 @@ function HistoryTab({ projectId, taskId }: { projectId: string; taskId: string }
 }
 
 function HistoryItem({ log }: { log: ActivityLog }) {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const actionLabel: Record<string, string> = {
     created: 'created this task',
     updated: 'updated',
@@ -1509,7 +1511,9 @@ function HistoryItem({ log }: { log: ActivityLog }) {
         {log.newValues && Object.keys(log.newValues).length > 0 && (
           <span className="text-fg-subtle"> · {Object.entries(log.newValues).map(([k, v]) => `${k}: ${v}`).join(', ')}</span>
         )}
-        <span className="ml-2 text-fg-subtle">{formatRelative(log.createdAt)}</span>
+        <span className="ml-2 text-fg-subtle" title={formatRelative(log.createdAt, timezone)}>
+          {formatZonedDateTime(log.createdAt, timezone)}
+        </span>
       </div>
     </div>
   )
@@ -2052,6 +2056,7 @@ function PriorityField({ task, onUpdate }: { task: Task; onUpdate: (dto: UpdateT
 // ─── Due Date Field ───────────────────────────────────────────────────────────
 
 function DueDateField({ task, onUpdate }: { task: Task; onUpdate: (dto: UpdateTaskDto) => void }) {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const [editing, setEditing] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -2062,10 +2067,9 @@ function DueDateField({ task, onUpdate }: { task: Task; onUpdate: (dto: UpdateTa
     if (editing) inputRef.current?.showPicker?.()
   }, [editing])
 
-  const fmt = (d: string) => {
-    const date = new Date(d)
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-  }
+  const fmt = (date: string) => formatZonedDate(date, timezone, 'en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+  })
 
   const handleQuick = (days: number) => {
     const d = new Date()

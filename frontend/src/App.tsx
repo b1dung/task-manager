@@ -12,6 +12,8 @@ import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { OAuthCallbackPage } from '@/pages/auth/OAuthCallbackPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
 import { ManageProjectsPage } from '@/pages/projects/ManageProjectsPage'
+import { MyTasksPage } from '@/pages/my-tasks/MyTasksPage'
+import { SettingsPage } from '@/pages/settings/SettingsPage'
 import { BoardPage } from '@/pages/board/BoardPage'
 import { SummaryPage } from '@/pages/summary/SummaryPage'
 import { CalendarPage } from '@/pages/calendar/CalendarPage'
@@ -49,6 +51,13 @@ function RequirePermission({ permission, children }: { permission: string; child
 
 export default function App() {
   const { theme } = useUIStore()
+  const user = useAuthStore((s) => s.user)
+  const setTheme = useUIStore((s) => s.setTheme)
+
+  useEffect(() => {
+    if (user?.appearance && user.appearance !== theme) setTheme(user.appearance)
+    document.documentElement.lang = user?.language ?? 'vi'
+  }, [user?.id, user?.appearance, user?.language, theme, setTheme])
 
   useEffect(() => {
     applyTheme(theme)
@@ -70,6 +79,7 @@ export default function App() {
           }
         >
           <Route path="/projects" element={<ProjectsPage />} />
+          <Route path="/my-tasks" element={<MyTasksPage />} />
           <Route path="/projects/:projectId/tasks" element={<BoardPage />} />
           <Route path="/projects/:projectId/summary" element={<SummaryPage />} />
           <Route path="/projects/:projectId/calendar" element={<CalendarPage />} />
@@ -78,6 +88,7 @@ export default function App() {
           <Route path="/projects/:projectId/developer-report" element={<RequirePermission permission="view_reports"><DeveloperReportPage /></RequirePermission>} />
           <Route path="/projects/:projectId/attachments" element={<AttachmentsPage />} />
           <Route path="/projects/:projectId/archived" element={<RequirePermission permission="approve_task"><ArchivedPage /></RequirePermission>} />
+          <Route path="/projects/:projectId/settings" element={<RequirePermission permission="edit_project"><SettingsPage /></RequirePermission>} />
           <Route path="/projects/:projectId/notifications" element={<NotificationsPage />} />
           <Route path="/projects/:projectId/activity" element={<ActivityPage />} />
           <Route
@@ -105,6 +116,7 @@ export default function App() {
             }
           />
           <Route path="/account" element={<AccountPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
         </Route>
 
         <Route path="/" element={<Navigate to="/projects" replace />} />

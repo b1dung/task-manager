@@ -11,7 +11,9 @@ import {Avatar} from '@/components/ui'
 import { TaskIcon, SubtaskIcon } from '@/components/ui/TaskIcons'
 import {useToast} from '@/hooks/useToast'
 import {useTaskStore} from '@/stores/useTaskStore'
-import {cn} from '@/lib/utils'
+import {useAuthStore} from '@/stores/useAuthStore'
+import {cn, formatDate} from '@/lib/utils'
+import {DEFAULT_TIMEZONE} from '@/lib/timezones'
 
 // ─── Priority icon ────────────────────────────────────────────────────────────
 
@@ -444,6 +446,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({task, onClick, onSubtaskClick, isDragging, projectKey = 'TASK'}: TaskCardProps) {
+    const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
     const [isExpanded, setIsExpanded] = useState(false)
     // Read live task from store — re-renders when assignee or other fields change via socket/mutation
     const liveTask = useTaskStore((s) => s.tasks[task.id]) ?? task
@@ -512,7 +515,7 @@ export function TaskCard({task, onClick, onSubtaskClick, isDragging, projectKey 
                         </svg>
                     )}
                     <Calendar size={14}/>
-                    {new Date(liveTask.dueDate!).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {formatDate(liveTask.dueDate, timezone)}
                 </div>
             )}
 

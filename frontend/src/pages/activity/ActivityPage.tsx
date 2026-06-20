@@ -8,6 +8,8 @@ import { membersApi } from '@/api/members'
 import { useFilterStore } from '@/stores/useFilterStore'
 import { Button, EmptyState, Skeleton } from '@/components/ui'
 import { formatRelative } from '@/lib/utils'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { DEFAULT_TIMEZONE, formatZonedDateTime } from '@/lib/timezones'
 
 const ACTION_COLORS: Record<string, string> = {
   created: 'bg-success',
@@ -26,6 +28,7 @@ type Period = 'week' | 'month' | 'quarter' | 'year' | 'custom'
 const PERIOD_DAYS: Record<Exclude<Period, 'custom'>, number> = { week: 7, month: 30, quarter: 90, year: 365 }
 
 export function ActivityPage() {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const { projectId = '' } = useParams<{ projectId: string }>()
   const { activity, setActivityFilter, clearActivityFilters } = useFilterStore()
   const [page, setPage] = useState(1)
@@ -185,7 +188,9 @@ export function ActivityPage() {
                           </span>
                           <span className="text-xs text-fg-subtle capitalize">{log.entityType}</span>
                         </div>
-                        <span className="text-xs text-fg-subtle shrink-0">{formatRelative(log.createdAt)}</span>
+                        <span className="text-xs text-fg-subtle shrink-0" title={formatRelative(log.createdAt, timezone)}>
+                          {formatZonedDateTime(log.createdAt, timezone)}
+                        </span>
                       </div>
                       {log.newValues && Object.keys(log.newValues).length > 0 && (
                         <div className="mt-1.5 text-xs text-fg-muted font-mono bg-bg rounded px-2 py-1 truncate">

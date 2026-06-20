@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import {
-  LayoutGrid, LayoutDashboard, Calendar, Users, BarChart2, Gauge, Paperclip, Bell, Activity, ShieldCheck, UserCog, FolderCog, Archive,
+  LayoutGrid, LayoutDashboard, Calendar, Users, BarChart2, Gauge, Paperclip, Bell, Activity, ShieldCheck, UserCog, FolderCog, Archive, ListChecks, Settings as SettingsIcon,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Plus, Check, Folder, LogOut, type LucideIcon,
 } from 'lucide-react'
@@ -40,6 +40,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: 'Work',
     items: [
+      { to: 'my-tasks', icon: ListChecks, label: 'My Tasks', absolutePath: '/my-tasks' },
       { to: 'tasks', icon: LayoutGrid, label: 'Board' },
       { to: 'calendar', icon: Calendar, label: 'Calendar' },
       { to: 'attachments', icon: Paperclip, label: 'Attachments' },
@@ -67,6 +68,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { to: 'manage-projects', icon: FolderCog, label: 'Project Management', absolutePath: '/manage-projects', requiresPermission: 'delete_project' },
       { to: 'users', icon: UserCog, label: 'User Management', absolutePath: '/users', requiresPermission: 'manage_users' },
       { to: 'roles', icon: ShieldCheck, label: 'Roles & Permissions', absolutePath: '/roles', requiresPermission: 'manage_roles' },
+      { to: 'settings', icon: SettingsIcon, label: 'Settings', requiresProject: true, requiresPermission: 'edit_project' },
     ],
   },
 ]

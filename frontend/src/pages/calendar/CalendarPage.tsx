@@ -17,6 +17,8 @@ import { Avatar, Button, Input, Modal, Skeleton, EmptyState } from '@/components
 import { TaskDetailModal } from '@/pages/board/components/TaskDetailModal'
 import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { DEFAULT_TIMEZONE, formatZonedDate, todayInTimezone, type UserTimezone } from '@/lib/timezones'
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
@@ -60,11 +62,12 @@ function getProjectKey(name: string): string {
 }
 
 export function CalendarPage() {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const { projectId = '' } = useParams<{ projectId: string }>()
   const qc = useQueryClient()
   const toast = useToast()
 
-  const [currentDate, setCurrentDate] = useState(new Date())
+  const [currentDate, setCurrentDate] = useState(() => parseISO(todayInTimezone(timezone)))
   const [view, setView] = useState<ViewMode>('month')
   const [selectedDay, setSelectedDay] = useState<Date | null>(null)
   const [openTaskId, setOpenTaskId] = useState<string | null>(null)
@@ -97,7 +100,7 @@ export function CalendarPage() {
     queryFn: () => tasksApi.list(projectId, { limit: 1000 }),
     enabled: !!projectId,
   })
-  const allTasks = data?.data ?? []
+  const allTasks = useMemo(() => data?.data ?? [], [data?.data])
 
   const tasks = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -227,6 +230,7 @@ export function CalendarPage() {
       {view === 'agenda' ? (
         <AgendaView
           tasks={tasks} loading={isLoading} projectKey={projectKey}
+          timezone={timezone}
           onOpen={(id) => setOpenTaskId(id)}
         />
       ) : (
@@ -305,7 +309,7 @@ export function CalendarPage() {
       {/* Day overflow modal */}
       {dayModal && (
         <Modal open onClose={() => setDayModal(null)}
-          title={format(dayModal, 'EEEE, d MMMM yyyy', { locale: vi })} size="sm">
+          title={formatZonedDate(format(dayModal, 'yyyy-MM-dd'), timezone, 'vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} size="sm">
           <div className="p-4 space-y-1.5 max-h-[60vh] overflow-y-auto scrollbar-thin">
             {dueTasks(dayModal).map((t) => (
               <CalendarTaskCard
@@ -372,8 +376,8 @@ function CalendarTaskCard({ task, projectKey, onOpen }: {
 
 // ─── Agenda view ────────────────────────────────────────────────────────────
 
-function AgendaView({ tasks, loading, projectKey, onOpen }: {
-  tasks: Task[]; loading: boolean; projectKey: string; onOpen: (id: string) => void
+function AgendaView({ tasks, loading, projectKey, timezone, onOpen }: {
+  tasks: Task[]; loading: boolean; projectKey: string; timezone: UserTimezone; onOpen: (id: string) => void
 }) {
   const groups = useMemo(() => {
     const today = new Date()
@@ -411,7 +415,7 @@ function AgendaView({ tasks, loading, projectKey, onOpen }: {
       {groups.map(([date, items]) => (
         <div key={date}>
           <p className="text-sm font-semibold text-fg mb-2">
-            {format(parseISO(date), 'EEEE, d MMMM yyyy', { locale: vi })}
+            {formatZonedDate(date, timezone, 'vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             <span className="ml-2 text-xs font-normal text-fg-subtle">{items.length} tasks</span>
           </p>
           <div className="space-y-1.5">

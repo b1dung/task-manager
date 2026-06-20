@@ -8,6 +8,10 @@ export interface AuthUser {
   fullName: string
   avatarUrl: string | null
   role: string
+  /** Optional for sessions persisted before user preferences were introduced. */
+  language?: 'vi' | 'en'
+  appearance?: 'light' | 'midnight' | 'mint'
+  timezone?: import('@/lib/timezones').UserTimezone
 }
 
 interface AuthState {

@@ -19,6 +19,7 @@ import { AddMemberDto } from '@/modules/members/dto/add-member.dto';
 import { ProjectMember } from '@/modules/members/entities/project-member.entity';
 import { MembersService } from '@/modules/members/members.service';
 import { CreateProjectDto } from '@/modules/projects/dto/create-project.dto';
+import { TransferOwnerDto } from '@/modules/projects/dto/transfer-owner.dto';
 import { UpdateProjectDto } from '@/modules/projects/dto/update-project.dto';
 import { Project } from '@/modules/projects/entities/project.entity';
 import { ProjectsService } from '@/modules/projects/projects.service';
@@ -88,6 +89,17 @@ export class ManageProjectsController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<{ success: true; data: Project }> {
     const data = await this.projectsService.setArchived(id, false);
+    return { success: true, data };
+  }
+
+  @Patch(':id/transfer-owner')
+  @RequirePermissions('delete_project')
+  @ApiOperation({ summary: 'Transfer project ownership (admin/owner)' })
+  async transferOwner(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: TransferOwnerDto,
+  ): Promise<{ success: true; data: Project }> {
+    const data = await this.projectsService.transferOwner(id, dto.ownerId);
     return { success: true, data };
   }
 

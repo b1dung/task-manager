@@ -13,6 +13,8 @@ import { reportsApi, type ProjectSummary } from '@/api/reports'
 import { projectsApi } from '@/api/projects'
 import { Avatar, Button, EmptyState, Skeleton } from '@/components/ui'
 import { formatRelative } from '@/lib/utils'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { DEFAULT_TIMEZONE, formatZonedDateTime } from '@/lib/timezones'
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 
@@ -220,6 +222,7 @@ function StatusOverview({ data, loading }: { data?: ProjectSummary; loading: boo
 function RecentActivities({ data, loading, projectKey }: {
   data?: ProjectSummary; loading: boolean; projectKey: string
 }) {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const items = data?.recentActivities ?? []
   return (
     <Card title="Recent Activities" description="Latest changes across the project.">
@@ -243,7 +246,9 @@ function RecentActivities({ data, loading, projectKey }: {
                     {taskRef && <span className="font-medium text-accent">{taskRef}</span>}
                     {a.taskTitle && <span className="text-fg-muted"> · {a.taskTitle}</span>}
                   </p>
-                  <p className="text-[11px] text-fg-subtle mt-0.5">{formatRelative(a.createdAt)}</p>
+                  <p className="text-[11px] text-fg-subtle mt-0.5" title={formatRelative(a.createdAt, timezone)}>
+                    {formatZonedDateTime(a.createdAt, timezone)}
+                  </p>
                 </div>
               </div>
             )

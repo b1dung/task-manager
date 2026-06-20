@@ -33,6 +33,7 @@ import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/modules/auth/guards/permissions.guard';
 import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
 import { UsersService } from '@/modules/users/users.service';
+import { ChangePasswordDto } from '@/modules/users/dto/change-password.dto';
 import { CreateUserDto } from '@/modules/users/dto/create-user.dto';
 import { UpdateUserDto } from '@/modules/users/dto/update-user.dto';
 import { User } from '@/modules/users/entities/user.entity';
@@ -179,6 +180,24 @@ export class UsersController {
     }
     const data = await this.usersService.update(id, dto);
     return { success: true, data };
+  }
+
+  @Patch(':id/password')
+  @ApiOperation({ summary: 'Change your own password' })
+  async changePassword(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() requester: JwtPayload,
+    @Body() dto: ChangePasswordDto,
+  ): Promise<{ success: true; data: null }> {
+    if (requester.sub !== id) {
+      throw new ForbiddenException('You can only change your own password');
+    }
+    await this.usersService.changePassword(
+      id,
+      dto.currentPassword,
+      dto.newPassword,
+    );
+    return { success: true, data: null };
   }
 
   @Patch(':id/avatar')

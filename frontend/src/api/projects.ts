@@ -55,6 +55,8 @@ export const projectsApi = {
     apiClient.delete<{ success: true; data: { taskCount: number } }>(`/manage/projects/${id}`),
   manageRestore: (id: string) =>
     apiClient.patch<{ success: true; data: Project }>(`/manage/projects/${id}/restore`),
+  manageTransferOwner: (id: string, ownerId: string) =>
+    apiClient.patch<{ success: true; data: Project }>(`/manage/projects/${id}/transfer-owner`, { ownerId }),
 
   manageMembers: (id: string) =>
     apiClient.get<{ success: true; data: ManagedMember[] }>(`/manage/projects/${id}/members`).then((r) => r.data.data),

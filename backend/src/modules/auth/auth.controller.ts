@@ -28,6 +28,7 @@ import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
 import { GoogleProfile } from '@/modules/auth/strategies/google.strategy';
 import { JwtRefreshPayload } from '@/modules/auth/strategies/jwt-refresh.strategy';
 import { User } from '@/modules/users/entities/user.entity';
+import { UsersService } from '@/modules/users/users.service';
 import { RateLimitGuard } from '@/modules/auth/guards/rate-limit.guard';
 
 @ApiTags('auth')
@@ -36,6 +37,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
   ) {}
 
   @Post('register')
@@ -119,8 +121,9 @@ export class AuthController {
   @ApiBearerAuth()
   @Get('me')
   @ApiOperation({ summary: 'Get the current authenticated user' })
-  me(@CurrentUser() user: JwtPayload) {
-    return { success: true, data: user };
+  async me(@CurrentUser() user: JwtPayload) {
+    const profile = await this.usersService.findById(user.sub);
+    return { success: true, data: this.toPublicUser(profile) };
   }
 
   @UseGuards(GoogleAuthGuard)

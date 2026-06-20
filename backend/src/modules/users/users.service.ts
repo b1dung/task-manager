@@ -122,6 +122,28 @@ export class UsersService {
     return this.findById(id);
   }
 
+  /** Change a user's password after verifying their current one. */
+  async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.userRepository
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id })
+      .getOne();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const matches = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!matches) {
+      throw new BadRequestException('Mật khẩu hiện tại không đúng');
+    }
+    const passwordHash = await bcrypt.hash(newPassword, 10);
+    await this.userRepository.update(id, { passwordHash });
+  }
+
   /**
    * Permanently delete a user. Projects they own are cascade-deleted (with all
    * their tasks/columns/etc.); tasks/attachments they touched elsewhere keep the

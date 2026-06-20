@@ -10,6 +10,8 @@ import { CheckCircle2, ListTodo, Percent, Clock, AlertTriangle, Timer, Gauge, Do
 import { reportsApi, type DeveloperGrade, type DevReportParams } from '@/api/reports'
 import { membersApi } from '@/api/members'
 import { Avatar, Button, Skeleton, EmptyState, PriorityBadge, StatusBadge } from '@/components/ui'
+import { useAuthStore } from '@/stores/useAuthStore'
+import { DEFAULT_TIMEZONE, formatZonedDate } from '@/lib/timezones'
 
 type Period = 'week' | 'month' | 'quarter' | 'year' | 'custom'
 const PERIOD_DAYS: Record<Exclude<Period, 'custom'>, number> = { week: 7, month: 30, quarter: 90, year: 365 }
@@ -30,15 +32,16 @@ const PIE_COLORS = ['#10b981', '#eab308', '#f97316', '#ef4444']
 const CHART_TOOLTIP = { backgroundColor: '#1b1b23', border: '1px solid #2d2d38', borderRadius: 8, fontSize: 12 }
 
 export function DeveloperReportPage() {
+  const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const { projectId = '' } = useParams<{ projectId: string }>()
 
-  const [period, setPeriod] = useState<Period>('month')
-  const [from, setFrom] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'))
+  const [period, setPeriod] = useState<Period>('week')
+  const [from, setFrom] = useState(format(subDays(new Date(), 7), 'yyyy-MM-dd'))
   const [to, setTo] = useState(format(new Date(), 'yyyy-MM-dd'))
   const [userId, setUserId] = useState('')
   const [priority, setPriority] = useState('')
-  // applied params drive the query
-  const [params, setParams] = useState<DevReportParams>({ from, to })
+  // Filters apply instantly — the query depends directly on the inputs.
+  const params: DevReportParams = { from, to, userId: userId || undefined, priority: priority || undefined }
 
   const { data: members = [] } = useQuery({
     queryKey: ['members', projectId],
@@ -47,7 +50,7 @@ export function DeveloperReportPage() {
   })
 
   const { data, isLoading } = useQuery({
-    queryKey: ['developer-report', projectId, params],
+    queryKey: ['developer-report', projectId, from, to, userId, priority],
     queryFn: () => reportsApi.developerReport(projectId, params),
     enabled: !!projectId,
   })
@@ -58,12 +61,10 @@ export function DeveloperReportPage() {
     setPeriod(p); setFrom(newFrom); setTo(newTo)
   }
 
-  const apply = () => setParams({ from, to, userId: userId || undefined, priority: priority || undefined })
   const reset = () => {
     const newTo = format(new Date(), 'yyyy-MM-dd')
-    const newFrom = format(subDays(new Date(), 30), 'yyyy-MM-dd')
-    setPeriod('month'); setFrom(newFrom); setTo(newTo); setUserId(''); setPriority('')
-    setParams({ from: newFrom, to: newTo })
+    const newFrom = format(subDays(new Date(), 7), 'yyyy-MM-dd')
+    setPeriod('week'); setFrom(newFrom); setTo(newTo); setUserId(''); setPriority('')
   }
 
   const exportCsv = () => {
@@ -120,7 +121,6 @@ export function DeveloperReportPage() {
           <option value="">All priorities</option>
           {PRIORITY_OPTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
         </select>
-        <Button variant="primary" size="sm" onClick={apply}>Apply</Button>
         <Button variant="ghost" size="sm" onClick={reset}>Reset</Button>
       </div>
 
@@ -223,7 +223,7 @@ export function DeveloperReportPage() {
                     <tr key={d.userId} className="border-t border-border hover:bg-bg-subtle/50">
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
-                          <Avatar name={d.fullName} avatarUrl={d.avatarUrl} size="xs" />
+                          <Avatar name={d.fullName} avatarUrl={d.avatarUrl} size="sm" />
                           <span className="text-fg font-medium whitespace-nowrap">{d.fullName}</span>
                         </div>
                       </td>
@@ -274,7 +274,7 @@ export function DeveloperReportPage() {
                       <td className="px-4 py-2"><StatusBadge status={t.status} /></td>
                       <td className="px-4 py-2 text-fg-muted">{t.estimatedHours ?? '—'}</td>
                       <td className="px-4 py-2 text-fg-muted">{t.loggedHours ?? '—'}</td>
-                      <td className="px-4 py-2 text-fg-muted whitespace-nowrap">{t.dueDate?.slice(0, 10) ?? '—'}</td>
+                      <td className="px-4 py-2 text-fg-muted whitespace-nowrap">{t.dueDate ? formatZonedDate(t.dueDate, timezone) : '—'}</td>
                       <td className="px-4 py-2 text-fg-muted whitespace-nowrap">{t.completedDate ?? '—'}</td>
                       <td className="px-4 py-2">
                         {t.overdue || t.lateDays > 0 ? (

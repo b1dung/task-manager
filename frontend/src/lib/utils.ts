@@ -1,20 +1,17 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { DEFAULT_TIMEZONE, formatZonedDate, type UserTimezone } from './timezones'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDate(date: string | Date | null | undefined): string {
+export function formatDate(date: string | Date | null | undefined, timezone: UserTimezone = DEFAULT_TIMEZONE): string {
   if (!date) return '—'
-  return new Intl.DateTimeFormat('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  }).format(new Date(date))
+  return formatZonedDate(date, timezone)
 }
 
-export function formatRelative(date: string | Date): string {
+export function formatRelative(date: string | Date, timezone: UserTimezone = DEFAULT_TIMEZONE): string {
   const now = new Date()
   const d = new Date(date)
   const diff = now.getTime() - d.getTime()
@@ -25,7 +22,7 @@ export function formatRelative(date: string | Date): string {
   if (hours < 24) return `${hours} giờ trước`
   const days = Math.floor(hours / 24)
   if (days < 7) return `${days} ngày trước`
-  return formatDate(d)
+  return formatDate(d, timezone)
 }
 
 export function truncate(str: string, max: number): string {

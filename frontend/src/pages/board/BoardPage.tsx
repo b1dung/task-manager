@@ -10,7 +10,7 @@ import {
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus } from 'lucide-react'
+import { Plus, Menu } from 'lucide-react'
 import { columnsApi, type BoardColumn } from '@/api/columns'
 import { tasksApi, type Task, type CreateTaskDto } from '@/api/tasks'
 import { projectsApi } from '@/api/projects'
@@ -21,6 +21,7 @@ import { useToast } from '@/hooks/useToast'
 import { Button, Modal, Input } from '@/components/ui'
 import { useForm, Controller } from 'react-hook-form'
 import { BoardColumnView, AddColumnCard } from './components/BoardColumnView'
+import { ColumnReorder } from './components/ColumnReorder'
 import { TaskCardOverlay } from './components/TaskCard'
 import { TaskDetailModal } from './components/TaskDetailModal'
 import { FilterBar } from './components/FilterBar'
@@ -73,6 +74,7 @@ export function BoardPage() {
     () => searchParams.get('selectedIssue'),
   )
   const [addingToColumn, setAddingToColumn] = useState<BoardColumn | null>(null)
+  const [reorderMode, setReorderMode] = useState(false)
   // Fallback for tasks not in allTasks (e.g. subtasks opened from card preview)
   const [selectedTaskFallback, setSelectedTaskFallback] = useState<Task | null>(null)
 
@@ -198,6 +200,24 @@ export function BoardPage() {
     onError: () => toast.error('Không thể xóa column có task'),
   })
 
+  const { mutate: reorderColumns } = useMutation({
+    mutationFn: (orderedIds: string[]) => columnsApi.reorder(projectId, orderedIds),
+    onMutate: (orderedIds) => {
+      const prev = qc.getQueryData<BoardColumn[]>(['columns', projectId])
+      if (prev) {
+        const byId = new Map(prev.map((c) => [c.id, c]))
+        const next = orderedIds.map((id) => byId.get(id)).filter(Boolean) as BoardColumn[]
+        qc.setQueryData(['columns', projectId], next)
+      }
+      return { prev }
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['columns', projectId], ctx.prev)
+      toast.error('Sắp xếp cột thất bại')
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['columns', projectId] }),
+  })
+
   const { mutate: moveTask } = useMutation({
     mutationFn: ({ id, columnId, position }: { id: string; columnId: string; position: number }) =>
       tasksApi.move(projectId, id, { columnId, position }),
@@ -285,8 +305,27 @@ export function BoardPage() {
 
   return (
     <div className="flex flex-col h-full overflow-hidden px-4 py-4">
-      <FilterBar projectId={projectId} />
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0"><FilterBar projectId={projectId} /></div>
+        {canEditBoard && !reorderMode && (
+          <button
+            onClick={() => setReorderMode(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors shrink-0"
+            title="Sắp xếp lại cột"
+          >
+            <Menu className="w-4 h-4" /> Sắp xếp cột
+          </button>
+        )}
+      </div>
 
+      {reorderMode ? (
+        <ColumnReorder
+          columns={columns}
+          taskCount={(id) => tasksByColumn(id).length}
+          onReorder={(ids) => reorderColumns(ids)}
+          onDone={() => setReorderMode(false)}
+        />
+      ) : (
       <DndContext
         sensors={sensors}
         collisionDetection={boardCollision}
@@ -318,6 +357,7 @@ export function BoardPage() {
           {activeTask ? <TaskCardOverlay task={activeTask} /> : null}
         </DragOverlay>
       </DndContext>
+      )}
 
       {canCreateTask && <AddTaskModal
         open={!!addingToColumn}

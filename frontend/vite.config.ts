@@ -16,7 +16,9 @@ export default defineConfig({
     host: true,
     proxy: {
       '/uploads': {
-        target: 'http://localhost:3000',
+        // localhost is correct when Vite runs on the host; Docker provides the
+        // backend service hostname through VITE_PROXY_TARGET.
+        target: process.env.VITE_PROXY_TARGET ?? 'http://localhost:3000',
         changeOrigin: true,
       },
     },

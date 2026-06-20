@@ -25,6 +25,15 @@ export class User {
   @Column({ name: 'avatar_url', nullable: true, type: 'varchar' })
   avatarUrl!: string | null;
 
+  @Column({ type: 'varchar', length: 5, default: 'vi' })
+  language!: 'vi' | 'en';
+
+  @Column({ type: 'varchar', length: 16, default: 'midnight' })
+  appearance!: 'light' | 'midnight' | 'mint';
+
+  @Column({ type: 'varchar', length: 64, default: 'Asia/Ho_Chi_Minh' })
+  timezone!: string;
+
   @Column({ type: 'enum', enum: UserRole, default: UserRole.MEMBER })
   role!: UserRole;
 

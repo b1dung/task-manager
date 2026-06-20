@@ -164,6 +164,30 @@ export class ProjectsService {
     return this.findById(id);
   }
 
+  /** Transfer project ownership; the new owner becomes an admin member. */
+  async transferOwner(id: string, newOwnerId: string): Promise<Project> {
+    await this.findById(id);
+    // update() (not save) so the loaded `owner` relation doesn't override ownerId.
+    await this.projectRepository.update(id, { ownerId: newOwnerId });
+
+    const member = await this.projectMemberRepository.findOne({
+      where: { projectId: id, userId: newOwnerId },
+    });
+    if (member) {
+      member.role = UserRole.ADMIN;
+      await this.projectMemberRepository.save(member);
+    } else {
+      await this.projectMemberRepository.save(
+        this.projectMemberRepository.create({
+          projectId: id,
+          userId: newOwnerId,
+          role: UserRole.ADMIN,
+        }),
+      );
+    }
+    return this.findById(id);
+  }
+
   async setArchived(
     id: string,
     archived: boolean,

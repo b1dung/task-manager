@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -72,6 +72,17 @@ export function ReportsPage() {
     setReportFilter({ from, to })
   }
 
+  // A shortcut is "active" when the current range matches its [today-days, today] window.
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const isShortcutActive = (days: number) =>
+    reports.to === today && reports.from === format(subDays(new Date(), days), 'yyyy-MM-dd')
+
+  // Default to "Tuần này" when no range has been picked yet.
+  useEffect(() => {
+    if (!reports.from && !reports.to) applyShortcut(7)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header + filters */}
@@ -80,7 +91,12 @@ export function ReportsPage() {
         <div className="flex flex-wrap items-center gap-2">
           {/* Shortcuts */}
           {SHORTCUTS.map((s) => (
-            <Button key={s.label} variant="outline" size="sm" onClick={() => applyShortcut(s.days)}>
+            <Button
+              key={s.label}
+              variant={isShortcutActive(s.days) ? 'primary' : 'outline'}
+              size="sm"
+              onClick={() => applyShortcut(s.days)}
+            >
               {s.label}
             </Button>
           ))}

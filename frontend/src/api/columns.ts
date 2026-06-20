@@ -18,5 +18,5 @@ export const columnsApi = {
     apiClient.patch<{ success: true; data: BoardColumn }>(`/projects/${projectId}/columns/${id}`, dto).then((r) => r.data.data),
   delete: (projectId: string, id: string) => apiClient.delete(`/projects/${projectId}/columns/${id}`),
   reorder: (projectId: string, orderedIds: string[]) =>
-    apiClient.patch(`/projects/${projectId}/columns/reorder`, { orderedIds }),
+    apiClient.patch(`/projects/${projectId}/columns/reorder`, { columnIds: orderedIds }),
 }

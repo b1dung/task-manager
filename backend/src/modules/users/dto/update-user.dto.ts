@@ -6,6 +6,7 @@ import {
   IsEnum,
   IsOptional,
   IsString,
+  IsIn,
   IsUUID,
   MinLength,
   ValidateIf,
@@ -27,6 +28,37 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   avatarUrl?: string;
+
+  @ApiPropertyOptional({ enum: ['vi', 'en'] })
+  @IsOptional()
+  @IsIn(['vi', 'en'])
+  language?: 'vi' | 'en';
+
+  @ApiPropertyOptional({ enum: ['light', 'midnight', 'mint'] })
+  @IsOptional()
+  @IsIn(['light', 'midnight', 'mint'])
+  appearance?: 'light' | 'midnight' | 'mint';
+
+  @ApiPropertyOptional({
+    enum: [
+      'Asia/Ho_Chi_Minh',
+      'Asia/Tokyo',
+      'Asia/Singapore',
+      'UTC',
+      'America/New_York',
+      'Europe/London',
+    ],
+  })
+  @IsOptional()
+  @IsIn([
+    'Asia/Ho_Chi_Minh',
+    'Asia/Tokyo',
+    'Asia/Singapore',
+    'UTC',
+    'America/New_York',
+    'Europe/London',
+  ])
+  timezone?: string;
 
   @ApiPropertyOptional({ enum: UserRole })
   @IsOptional()
