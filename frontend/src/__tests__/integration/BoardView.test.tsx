@@ -7,6 +7,9 @@ import { BoardPage } from '@/pages/board/BoardPage'
 vi.mock('@/api/client', () => ({
   apiClient: {
     get: vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/me/permissions')) {
+        return Promise.resolve({ data: { data: { permissions: ['create_task', 'edit_project', 'update_own_task'] } } })
+      }
       if (url.includes('/columns')) {
         return Promise.resolve({
           data: {
@@ -75,10 +78,10 @@ vi.mock('@/api/client', () => ({
 }))
 
 vi.mock('@/stores/useAuthStore', () => ({
-  useAuthStore: () => ({
-    user: { id: 'user-1', fullName: 'Alice', avatarUrl: null },
-    accessToken: 'mock-token',
-  }),
+  useAuthStore: (selector?: (s: Record<string, unknown>) => unknown) => {
+    const state = { user: { id: 'user-1', fullName: 'Alice', avatarUrl: null }, accessToken: 'mock-token', isAuthenticated: true }
+    return selector ? selector(state) : state
+  },
 }))
 
 vi.mock('@/stores/useUIStore', () => ({

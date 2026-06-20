@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import {
   DndContext, DragOverlay,
@@ -6,7 +6,7 @@ import {
   useSensor, useSensors,
   pointerWithin, closestCenter,
   type CollisionDetection,
-  type DragStartEvent, type DragEndEvent, type DragCancelEvent,
+  type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core'
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -18,12 +18,13 @@ import { useFilterStore } from '@/stores/useFilterStore'
 import { useTaskStore } from '@/stores/useTaskStore'
 import { useSocket } from '@/hooks/useSocket'
 import { useToast } from '@/hooks/useToast'
-import { Button, Modal, Input, Select } from '@/components/ui'
+import { Button, Modal, Input } from '@/components/ui'
 import { useForm, Controller } from 'react-hook-form'
 import { BoardColumnView, AddColumnCard } from './components/BoardColumnView'
 import { TaskCardOverlay } from './components/TaskCard'
 import { TaskDetailModal } from './components/TaskDetailModal'
 import { FilterBar } from './components/FilterBar'
+import { usePermissions } from '@/hooks/usePermissions'
 
 // Board collision: pointer-within matches sorted by rect area (tasks < columns), fallback to closestCenter
 const boardCollision: CollisionDetection = (args) => {
@@ -62,6 +63,10 @@ export function BoardPage() {
   const socket = useSocket(projectId)
   const { board: filters } = useFilterStore()
   const { setTasks, updateTask: updateTaskStore } = useTaskStore()
+  const permissions = usePermissions()
+  const canCreateTask = permissions.includes('create_task')
+  const canEditBoard = permissions.includes('edit_project')
+  const canUpdateTask = permissions.includes('update_own_task')
 
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(
@@ -98,7 +103,7 @@ export function BoardPage() {
     queryFn: () => tasksApi.list(projectId, { ...filters, limit: 500, includeSubtasks: false }),
     enabled: !!projectId,
   })
-  const allTasks = tasksResult?.data ?? []
+  const allTasks = useMemo(() => tasksResult?.data ?? [], [tasksResult?.data])
 
   // Sync React Query tasks to Zustand store so TaskCard/TaskDetailModal can subscribe
   useEffect(() => {
@@ -211,6 +216,7 @@ export function BoardPage() {
   })
 
   const handleDragStart = (event: DragStartEvent) => {
+    if (!canUpdateTask) return
     const task = event.active.data.current?.task as Task | undefined
     if (task) {
       setActiveTask(task)
@@ -218,7 +224,7 @@ export function BoardPage() {
     }
   }
 
-  const handleDragCancel = (_event: DragCancelEvent) => {
+  const handleDragCancel = () => {
     setActiveTask(null)
   }
 
@@ -226,7 +232,7 @@ export function BoardPage() {
     const { active, over } = event
     setActiveTask(null)
 
-    if (!over) return
+    if (!over || !canUpdateTask) return
 
     const dragging = active.data.current?.task as Task
     if (!dragging) return
@@ -235,7 +241,7 @@ export function BoardPage() {
 
     // Determine target column + position — prefer explicit type tag, fall back to ID lookup
     let targetColumnId = dragging.columnId
-    let targetPosition = 0
+    let targetPosition: number
 
     const overType = over.data.current?.type as string | undefined
 
@@ -301,9 +307,11 @@ export function BoardPage() {
               onDeleteColumn={deleteColumn}
               onTaskClick={handleTaskClick}
               onSubtaskClick={handleSubtaskClick}
+              canCreateTask={canCreateTask}
+              canEditColumn={canEditBoard}
             />
           ))}
-          <AddColumnCard onAdd={addColumn} />
+          {canEditBoard && <AddColumnCard onAdd={addColumn} />}
         </div>
 
         <DragOverlay dropAnimation={{ duration: 150, easing: 'ease' }}>
@@ -311,12 +319,12 @@ export function BoardPage() {
         </DragOverlay>
       </DndContext>
 
-      <AddTaskModal
+      {canCreateTask && <AddTaskModal
         open={!!addingToColumn}
         projectId={projectId}
         column={addingToColumn}
         onClose={() => setAddingToColumn(null)}
-      />
+      />}
 
       <TaskDetailModal
         task={modalTask}

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Shield, Plus, Pencil, Trash2, Check, Lock, X } from 'lucide-react'
 import { rolesApi, type Role, type PermissionDef, type RoleInput } from '@/api/roles'
-import { Button, EmptyState, Modal, Spinner } from '@/components/ui'
+import { Button, ConfirmDialog, EmptyState, Modal, Spinner } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { useHasPermission } from '@/hooks/usePermissions'
 import { cn } from '@/lib/utils'
@@ -27,6 +27,7 @@ export function RolesPermissionsPage() {
   const [tab, setTab] = useState<Tab>('roles')
   const [editing, setEditing] = useState<Role | null>(null)
   const [creating, setCreating] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<Role | null>(null)
 
   const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ['roles'],
@@ -66,11 +67,12 @@ export function RolesPermissionsPage() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['roles'] }),
   })
 
-  const { mutate: deleteRole } = useMutation({
+  const { mutate: deleteRole, isPending: deletingRole } = useMutation({
     mutationFn: (id: string) => rolesApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['roles'] })
       toast.success('Đã xóa role')
+      setDeleteTarget(null)
     },
     onError: () => toast.error('Không thể xóa role'),
   })
@@ -84,11 +86,7 @@ export function RolesPermissionsPage() {
     updateRole({ id: role.id, permissions: next })
   }
 
-  const handleDelete = (role: Role) => {
-    if (window.confirm(`Xóa role "${role.name}"? Hành động này không thể hoàn tác.`)) {
-      deleteRole(role.id)
-    }
-  }
+  const handleDelete = (role: Role) => setDeleteTarget(role)
 
   const loading = rolesLoading || permsLoading
 
@@ -155,6 +153,16 @@ export function RolesPermissionsPage() {
           onClose={() => { setCreating(false); setEditing(null) }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => deleteTarget && deleteRole(deleteTarget.id)}
+        title="Xóa role"
+        message={deleteTarget ? <>Xóa role <span className="font-medium text-fg">"{deleteTarget.name}"</span>? Hành động này không thể hoàn tác.</> : null}
+        confirmLabel="Xóa role"
+        loading={deletingRole}
+      />
     </div>
   )
 }
@@ -326,7 +334,8 @@ function RoleFormModal({
   const toggle = (key: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
       return next
     })
   }

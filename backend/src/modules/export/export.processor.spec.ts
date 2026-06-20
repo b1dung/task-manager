@@ -6,10 +6,7 @@ import {
   TaskStatus,
   TaskType,
 } from '@shared/enums';
-import {
-  ExportProcessor,
-  EXPORT_PUBLIC_PATH,
-} from '@/modules/export/export.processor';
+import { ExportProcessor } from '@/modules/export/export.processor';
 import {
   MonthlyReportPdfExportJob,
   TasksExcelExportJob,
@@ -59,7 +56,10 @@ const fakeStream: FakeStream = {
   }),
 };
 
-jest.mock('fs', () => ({ createWriteStream: jest.fn(() => fakeStream) }));
+jest.mock('fs', () => ({
+  ...jest.requireActual('fs'),
+  createWriteStream: jest.fn(() => fakeStream),
+}));
 jest.mock('fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
 }));
@@ -158,7 +158,9 @@ describe('ExportProcessor', () => {
         }),
       );
       expect(result.fileUrl).toMatch(
-        new RegExp(`^${EXPORT_PUBLIC_PATH}/tasks-${projectId}-\\d+\\.xlsx$`),
+        new RegExp(
+          `^/api/v1/projects/${projectId}/export/files/tasks-${projectId}-\\d+\\.xlsx$`,
+        ),
       );
     });
   });
@@ -195,7 +197,7 @@ describe('ExportProcessor', () => {
       );
       expect(result.fileUrl).toMatch(
         new RegExp(
-          `^${EXPORT_PUBLIC_PATH}/monthly-report-${projectId}-\\d+\\.pdf$`,
+          `^/api/v1/projects/${projectId}/export/files/monthly-report-${projectId}-\\d+\\.pdf$`,
         ),
       );
     });

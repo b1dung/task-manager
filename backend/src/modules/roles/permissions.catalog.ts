@@ -26,6 +26,13 @@ export const PERMISSION_CATALOG: PermissionDef[] = [
   },
   // Projects
   {
+    key: 'view_all_projects',
+    label: 'View All Projects',
+    category: 'Projects',
+    description:
+      'Xem và truy cập MỌI dự án, kể cả dự án chưa được thêm vào team (super quyền)',
+  },
+  {
     key: 'create_project',
     label: 'Create Project',
     category: 'Projects',
@@ -184,12 +191,18 @@ export const DEFAULT_ROLES: DefaultRole[] = [
     description:
       'Developer / QA / Designer / BA. Xem dự án, tạo task, cập nhật trạng thái, comment, upload file, log work.',
     sortOrder: 4,
-    permissions: ['create_task', 'update_own_task', 'view_reports', 'view_pages'],
+    permissions: [
+      'create_task',
+      'update_own_task',
+      'view_reports',
+      'view_pages',
+    ],
   },
   {
     key: 'client',
     name: 'Client',
-    description: 'Chỉ xem các project được mời. Comment trên task. Xem báo cáo được chia sẻ.',
+    description:
+      'Chỉ xem các project được mời. Comment trên task. Xem báo cáo được chia sẻ.',
     sortOrder: 5,
     permissions: ['view_reports', 'view_pages'],
   },

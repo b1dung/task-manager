@@ -4,6 +4,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1',
   timeout: 15000,
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 })
 
@@ -36,13 +37,13 @@ apiClient.interceptors.response.use(
 
     isRefreshing = true
     try {
-      const refreshToken = useAuthStore.getState().refreshToken
       const { data } = await axios.post(
         `${import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api/v1'}/auth/refresh`,
-        { refreshToken },
+        {},
+        { withCredentials: true },
       )
-      const { accessToken, refreshToken: newRefreshToken } = data.data as { accessToken: string; refreshToken: string }
-      useAuthStore.getState().setTokens(accessToken, newRefreshToken)
+      const { accessToken } = data.data as { accessToken: string }
+      useAuthStore.getState().setTokens(accessToken, '')
       queue.forEach((cb) => cb(accessToken))
       queue = []
       original.headers.Authorization = `Bearer ${accessToken}`

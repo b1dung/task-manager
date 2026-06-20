@@ -3,6 +3,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { NotificationType } from '@shared/enums';
 import { Notification } from '@/modules/notifications/entities/notification.entity';
+import { ProjectMember } from '@/modules/members/entities/project-member.entity';
+import { User } from '@/modules/users/entities/user.entity';
 import { NotificationsService } from '@/modules/notifications/notifications.service';
 import { TaskboardGateway } from '@/modules/websocket/websocket.gateway';
 
@@ -17,6 +19,7 @@ describe('NotificationsService', () => {
     findOne: jest.Mock;
     count: jest.Mock;
     createQueryBuilder: jest.Mock;
+    manager: { find: jest.Mock };
   };
   let queryBuilder: {
     where: jest.Mock;
@@ -65,8 +68,24 @@ describe('NotificationsService', () => {
       findOne: jest.fn(),
       count: jest.fn().mockResolvedValue(0),
       createQueryBuilder: jest.fn().mockReturnValue(queryBuilder),
+      manager: { find: jest.fn().mockResolvedValue([]) },
     };
     gateway = { emitNotification: jest.fn() };
+
+    const ownerQb = {
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      select: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn().mockResolvedValue([]),
+    };
+    const projectMemberRepository = {
+      find: jest.fn().mockResolvedValue([]),
+    };
+    const userRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      createQueryBuilder: jest.fn().mockReturnValue(ownerQb),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -75,6 +94,11 @@ describe('NotificationsService', () => {
           provide: getRepositoryToken(Notification),
           useValue: notificationRepository,
         },
+        {
+          provide: getRepositoryToken(ProjectMember),
+          useValue: projectMemberRepository,
+        },
+        { provide: getRepositoryToken(User), useValue: userRepository },
         { provide: TaskboardGateway, useValue: gateway },
       ],
     }).compile();

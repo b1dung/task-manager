@@ -20,7 +20,10 @@ export class CreateRoleDto {
   @IsString()
   description?: string;
 
-  @ApiPropertyOptional({ type: [String], example: ['view_pages', 'approve_task'] })
+  @ApiPropertyOptional({
+    type: [String],
+    example: ['view_pages', 'approve_task'],
+  })
   @IsOptional()
   @IsArray()
   @ArrayUnique()

@@ -6,9 +6,14 @@ import { ProjectAttachmentsController } from '@/modules/attachments/project-atta
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { Attachment } from '@/modules/attachments/entities/attachment.entity';
 import { Task } from '@/modules/tasks/entities/task.entity';
+import { RolesModule } from '@/modules/roles/roles.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Attachment, Task]), CommonModule],
+  imports: [
+    TypeOrmModule.forFeature([Attachment, Task]),
+    CommonModule,
+    RolesModule,
+  ],
   controllers: [AttachmentsController, ProjectAttachmentsController],
   providers: [AttachmentsService],
   exports: [AttachmentsService],

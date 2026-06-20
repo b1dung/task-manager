@@ -41,9 +41,11 @@ export enum SprintStatus {
 }
 
 export enum NotificationType {
+  TASK_CREATED = 'task_created',
   TASK_ASSIGNED = 'task_assigned',
   TASK_UPDATED = 'task_updated',
   TASK_MOVED = 'task_moved',
+  TIME_LOGGED = 'time_logged',
   COMMENT_ADDED = 'comment_added',
   MENTION = 'mention',
   DUE_DATE_REMINDER = 'due_date_reminder',

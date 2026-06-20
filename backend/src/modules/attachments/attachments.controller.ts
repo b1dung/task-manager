@@ -6,6 +6,8 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Res,
+  StreamableFile,
   UploadedFile,
   UseGuards,
   UseInterceptors,
@@ -20,16 +22,20 @@ import {
 import { randomUUID } from 'crypto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
+import { createReadStream } from 'fs';
+import { Response } from 'express';
 import { ProjectMemberGuard } from '@/common/guards/project-member.guard';
 import { AttachmentsService } from '@/modules/attachments/attachments.service';
 import { Attachment } from '@/modules/attachments/entities/attachment.entity';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
+import { PermissionsGuard } from '@/modules/auth/guards/permissions.guard';
+import { RequirePermissions } from '@/modules/auth/decorators/require-permissions.decorator';
 
 @ApiTags('attachments')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, ProjectMemberGuard)
+@UseGuards(JwtAuthGuard, ProjectMemberGuard, PermissionsGuard)
 @Controller('projects/:projectId/tasks/:taskId/attachments')
 export class AttachmentsController {
   constructor(private readonly attachmentsService: AttachmentsService) {}
@@ -48,6 +54,7 @@ export class AttachmentsController {
   }
 
   @Post()
+  @RequirePermissions('create_task')
   @ApiOperation({ summary: 'Upload an attachment to a task' })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
@@ -58,7 +65,17 @@ export class AttachmentsController {
           cb(null, `${randomUUID()}${extname(file.originalname)}`);
         },
       }),
-      limits: { fileSize: 250 * 1024 * 1024 },
+      limits: { fileSize: 25 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed =
+          /^(image\/(png|jpeg|gif|webp)|application\/(pdf|zip|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet))|text\/(plain|csv))$/;
+        cb(
+          allowed.test(file.mimetype)
+            ? null
+            : new BadRequestException('Unsupported file type'),
+          allowed.test(file.mimetype),
+        );
+      },
     }),
   )
   async create(
@@ -77,6 +94,26 @@ export class AttachmentsController {
       file,
     );
     return { success: true, data };
+  }
+
+  @Get(':id/download')
+  async download(
+    @Param('projectId', ParseUUIDPipe) projectId: string,
+    @Param('taskId', ParseUUIDPipe) taskId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile> {
+    const file = await this.attachmentsService.getDownload(
+      projectId,
+      taskId,
+      id,
+    );
+    response.set({
+      'Content-Type': file.attachment.mimeType,
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(file.attachment.fileName)}`,
+      'X-Content-Type-Options': 'nosniff',
+    });
+    return new StreamableFile(createReadStream(file.path));
   }
 
   @Delete(':id')

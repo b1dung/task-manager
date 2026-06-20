@@ -6,7 +6,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { TaskStatus, UserRole } from '@shared/enums';
-import { QueryMembersDto, WorkloadFilter } from '@/modules/members/dto/query-members.dto';
+import {
+  QueryMembersDto,
+  WorkloadFilter,
+} from '@/modules/members/dto/query-members.dto';
 import { ProjectMember } from '@/modules/members/entities/project-member.entity';
 
 @Injectable()
@@ -30,7 +33,9 @@ export class MembersService {
             .from('tasks', 't')
             .where('t.assignee_id = pm.user_id')
             .andWhere('t.project_id = pm.project_id')
-            .andWhere(`t.status IN ('${TaskStatus.TODO}','${TaskStatus.IN_PROGRESS}','${TaskStatus.IN_REVIEW}')`)
+            .andWhere(
+              `t.status IN ('${TaskStatus.TODO}','${TaskStatus.IN_PROGRESS}','${TaskStatus.IN_REVIEW}')`,
+            )
             .andWhere('t.deleted_at IS NULL'),
         'taskCount',
       )

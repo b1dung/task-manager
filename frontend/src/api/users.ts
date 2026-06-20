@@ -47,6 +47,8 @@ export const usersApi = {
       .patch<{ success: true; data: AppUser }>(`/users/${id}`, dto)
       .then((r) => r.data.data),
 
+  remove: (id: string) => apiClient.delete(`/users/${id}`),
+
   uploadAvatar: (id: string, file: File) => {
     const form = new FormData()
     form.append('file', file)

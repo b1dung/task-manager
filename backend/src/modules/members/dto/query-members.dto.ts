@@ -4,8 +4,8 @@ import { UserRole } from '@shared/enums';
 
 export enum WorkloadFilter {
   OVERLOADED = 'overloaded', // > 5 active tasks
-  NORMAL = 'normal',         // 1–5 active tasks
-  FREE = 'free',             // 0 active tasks
+  NORMAL = 'normal', // 1–5 active tasks
+  FREE = 'free', // 0 active tasks
 }
 
 export class QueryMembersDto {

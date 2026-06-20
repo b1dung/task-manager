@@ -34,7 +34,7 @@ describe('CommentsService', () => {
   let projectMemberRepository: { find: jest.Mock };
   let activityService: { record: jest.Mock };
   let gateway: { emitCommentAdded: jest.Mock };
-  let notificationsService: { create: jest.Mock };
+  let notificationsService: { create: jest.Mock; notifyTaskEvent: jest.Mock };
 
   const buildComment = (overrides: Partial<Comment> = {}): Comment =>
     Object.assign(new Comment(), {
@@ -68,7 +68,10 @@ describe('CommentsService', () => {
     projectMemberRepository = { find: jest.fn() };
     activityService = { record: jest.fn().mockResolvedValue(undefined) };
     gateway = { emitCommentAdded: jest.fn() };
-    notificationsService = { create: jest.fn().mockResolvedValue(undefined) };
+    notificationsService = {
+      create: jest.fn().mockResolvedValue(undefined),
+      notifyTaskEvent: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

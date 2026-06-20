@@ -6,7 +6,10 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
-import { PERMISSIONS_KEY } from '@/modules/auth/decorators/require-permissions.decorator';
+import {
+  ANY_PERMISSIONS_KEY,
+  PERMISSIONS_KEY,
+} from '@/modules/auth/decorators/require-permissions.decorator';
 import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
 import { RolesService } from '@/modules/roles/roles.service';
 
@@ -27,7 +30,9 @@ export class PermissionsGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context
       .switchToHttp()
-      .getRequest<Request & { user?: JwtPayload; userPermissions?: string[] }>();
+      .getRequest<
+        Request & { user?: JwtPayload; userPermissions?: string[] }
+      >();
 
     const user = request.user;
     if (!user) return false;
@@ -40,7 +45,17 @@ export class PermissionsGuard implements CanActivate {
       [context.getHandler(), context.getClass()],
     );
     if (!required || required.length === 0) {
-      return true;
+      const anyRequired = this.reflector.getAllAndOverride<
+        string[] | undefined
+      >(ANY_PERMISSIONS_KEY, [context.getHandler(), context.getClass()]);
+      if (
+        !anyRequired?.length ||
+        anyRequired.some((p) => permissions.includes(p))
+      )
+        return true;
+      throw new ForbiddenException(
+        `Missing one of required permission(s): ${anyRequired.join(', ')}`,
+      );
     }
 
     const ok = required.every((p) => permissions.includes(p));

@@ -228,10 +228,7 @@ export class ReportsService {
         .addSelect('assignee.fullName', 'fullName')
         .addSelect('assignee.avatarUrl', 'avatarUrl')
         .addSelect('COUNT(*)', 'assigned')
-        .addSelect(
-          'COUNT(*) FILTER (WHERE task.status = :done)',
-          'completed',
-        )
+        .addSelect('COUNT(*) FILTER (WHERE task.status = :done)', 'completed')
         .where('task.projectId = :projectId', { projectId })
         .andWhere('task.assigneeId IS NOT NULL')
         .setParameter('done', TaskStatus.DONE)
@@ -422,10 +419,11 @@ export class ReportsService {
       distribution[t.status] = (distribution[t.status] ?? 0) + 1;
 
       const isDone = t.status === TaskStatus.DONE;
-      const completedDate = isDone ? t.updatedAt.toISOString().slice(0, 10) : null;
+      const completedDate = isDone
+        ? t.updatedAt.toISOString().slice(0, 10)
+        : null;
       let lateDays = 0;
-      const overdueNow =
-        !isDone && t.dueDate != null && t.dueDate < today;
+      const overdueNow = !isDone && t.dueDate != null && t.dueDate < today;
 
       if (isDone) {
         acc.completed += 1;
@@ -460,7 +458,8 @@ export class ReportsService {
       } else if (overdueNow) {
         acc.overdue += 1;
         lateDays = Math.round(
-          (new Date(today).getTime() - new Date(t.dueDate as string).getTime()) /
+          (new Date(today).getTime() -
+            new Date(t.dueDate as string).getTime()) /
             DAY_MS,
         );
       }
@@ -481,7 +480,8 @@ export class ReportsService {
         title: t.title,
         priority: t.priority,
         status: t.status,
-        estimatedHours: t.estimatedHours === null ? null : Number(t.estimatedHours),
+        estimatedHours:
+          t.estimatedHours === null ? null : Number(t.estimatedHours),
         loggedHours: t.loggedHours === null ? null : Number(t.loggedHours),
         dueDate: t.dueDate,
         completedDate,
@@ -491,8 +491,7 @@ export class ReportsService {
     }
 
     const developers: DeveloperRow[] = Array.from(devs.values()).map((a) => {
-      const completionRate =
-        a.assigned > 0 ? a.completed / a.assigned : 0;
+      const completionRate = a.assigned > 0 ? a.completed / a.assigned : 0;
       const loggedHours = loggedByUser.get(a.userId) ?? 0;
       const avgDuration =
         a.durationCount > 0 ? a.durationDaysSum / a.durationCount : 0;
@@ -500,7 +499,10 @@ export class ReportsService {
         a.onTimeEligible > 0 ? a.onTime / a.onTimeEligible : completionRate;
       const estimateAccuracy =
         a.estAccCount > 0 ? a.estAccSum / a.estAccCount : 0.5;
-      const loggedScore = Math.min(loggedHours / Math.max(a.assigned * 8, 1), 1);
+      const loggedScore = Math.min(
+        loggedHours / Math.max(a.assigned * 8, 1),
+        1,
+      );
       const score =
         completionRate * 0.4 +
         loggedScore * 0.25 +
@@ -546,9 +548,7 @@ export class ReportsService {
         totalTasks,
         completedTasks,
         completionRate:
-          totalTasks > 0
-            ? Math.round((completedTasks / totalTasks) * 100)
-            : 0,
+          totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0,
         loggedHours: Math.round(totalLogged * 10) / 10,
         overdueTasks,
         avgCompletionTime: Math.round(durationDays * 10) / 10,

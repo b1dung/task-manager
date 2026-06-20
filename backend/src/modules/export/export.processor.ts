@@ -24,7 +24,6 @@ import {
 } from '@/modules/export/export.service';
 
 export const EXPORT_DIR = join(process.cwd(), 'uploads', 'exports');
-export const EXPORT_PUBLIC_PATH = '/uploads/exports';
 
 export interface GeneratedExport {
   fileName: string;
@@ -55,6 +54,7 @@ export class ExportProcessor {
     await this.writeTasksWorkbook(tasks, fileName);
 
     return this.notifyExportReady(
+      projectId,
       requesterId,
       fileName,
       'Your task list export is ready to download',
@@ -75,6 +75,7 @@ export class ExportProcessor {
     await this.writeMonthlyReportPdf(projectId, kpi, completionRate, fileName);
 
     return this.notifyExportReady(
+      projectId,
       requesterId,
       fileName,
       'Your monthly report export is ready to download',
@@ -160,11 +161,12 @@ export class ExportProcessor {
   }
 
   private async notifyExportReady(
+    projectId: string,
     recipientId: string,
     fileName: string,
     message: string,
   ): Promise<GeneratedExport> {
-    const fileUrl = `${EXPORT_PUBLIC_PATH}/${fileName}`;
+    const fileUrl = `/api/v1/projects/${projectId}/export/files/${fileName}`;
     await this.notificationsService.create({
       recipientId,
       type: NotificationType.EXPORT_READY,

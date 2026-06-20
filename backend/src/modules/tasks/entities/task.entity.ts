@@ -134,6 +134,13 @@ export class Task {
   })
   labels!: Label[];
 
+  /** When set, the task is archived: hidden from the board but kept intact. */
+  @Column({ name: 'archived_at', type: 'timestamptz', nullable: true })
+  archivedAt!: Date | null;
+
+  @Column({ name: 'archived_by', type: 'uuid', nullable: true })
+  archivedBy!: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 

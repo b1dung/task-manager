@@ -13,6 +13,7 @@ import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
 import { Role } from '@/modules/roles/entities/role.entity';
 import { CreateRoleDto } from '@/modules/roles/dto/create-role.dto';
 import { UpdateRoleDto } from '@/modules/roles/dto/update-role.dto';
+import { User } from '@/modules/users/entities/user.entity';
 import {
   DEFAULT_ROLES,
   PERMISSION_CATALOG,
@@ -56,6 +57,8 @@ export class RolesService implements OnModuleInit {
   constructor(
     @InjectRepository(Role)
     private readonly roleRepository: Repository<Role>,
+    @InjectRepository(User)
+    private readonly userRepository: Repository<User>,
   ) {}
 
   private invalidateCache(): void {
@@ -147,7 +150,20 @@ export class RolesService implements OnModuleInit {
     return role;
   }
 
-  async create(dto: CreateRoleDto): Promise<Role> {
+  async findByKey(key: string): Promise<Role | null> {
+    return this.roleRepository.findOne({ where: { key } });
+  }
+
+  async create(
+    dto: CreateRoleDto,
+    actorPermissions: string[] = [],
+    actorRoleKey?: string | null,
+  ): Promise<Role> {
+    this.assertAssignable(
+      dto.permissions ?? [],
+      actorPermissions,
+      actorRoleKey,
+    );
     const key = slugify(dto.name);
     if (!key) {
       throw new BadRequestException('Invalid role name');
@@ -174,8 +190,28 @@ export class RolesService implements OnModuleInit {
     return saved;
   }
 
-  async update(id: string, dto: UpdateRoleDto): Promise<Role> {
+  async update(
+    id: string,
+    dto: UpdateRoleDto,
+    actorPermissions: string[] = [],
+    actor?: EffectivePermissions,
+  ): Promise<Role> {
     const role = await this.findOne(id);
+
+    if (role.key === 'owner' && actor?.roleKey !== 'owner') {
+      throw new BadRequestException('Only an owner can modify the Owner role');
+    }
+    if (dto.permissions !== undefined) {
+      this.assertAssignable(dto.permissions, actorPermissions, actor?.roleKey);
+      if (
+        actor?.roleId === role.id &&
+        !dto.permissions.includes('manage_roles')
+      ) {
+        throw new BadRequestException(
+          'You cannot remove manage_roles from your own role',
+        );
+      }
+    }
 
     // System roles keep their identity (name/key) but permissions stay editable.
     if (role.isSystem && dto.name !== undefined && dto.name !== role.name) {
@@ -191,10 +227,34 @@ export class RolesService implements OnModuleInit {
     return saved;
   }
 
-  async remove(id: string): Promise<void> {
+  private assertAssignable(
+    requested: string[],
+    actorPermissions: string[],
+    actorRoleKey?: string | null,
+  ): void {
+    if (actorRoleKey === 'owner') return;
+    const forbidden = requested.filter(
+      (permission) => !actorPermissions.includes(permission),
+    );
+    if (forbidden.length) {
+      throw new BadRequestException(
+        `Cannot grant permission(s) you do not hold: ${forbidden.join(', ')}`,
+      );
+    }
+  }
+
+  async remove(id: string, actorRoleId?: string | null): Promise<void> {
     const role = await this.findOne(id);
     if (role.isSystem) {
       throw new BadRequestException('Cannot delete a system role');
+    }
+    if (actorRoleId === id)
+      throw new BadRequestException('You cannot delete your own role');
+    const assigned = await this.userRepository.count({ where: { roleId: id } });
+    if (assigned > 0) {
+      throw new ConflictException(
+        `Cannot delete a role assigned to ${assigned} user(s)`,
+      );
     }
     await this.roleRepository.delete(id);
     this.invalidateCache();

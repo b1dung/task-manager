@@ -56,9 +56,7 @@ export class AuthService {
     if (params.token) {
       const invite = await this.invitesService.findValidByToken(params.token);
       if (!invite) {
-        throw new BadRequestException(
-          'Lời mời không hợp lệ hoặc đã hết hạn',
-        );
+        throw new BadRequestException('Lời mời không hợp lệ hoặc đã hết hạn');
       }
       const user = await this.usersService.create({
         email: invite.email,

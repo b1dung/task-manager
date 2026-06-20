@@ -35,6 +35,7 @@ describe('TasksService', () => {
     update: jest.Mock;
     softRemove: jest.Mock;
     createQueryBuilder: jest.Mock;
+    manager: { query: jest.Mock };
   };
   let taskLinkRepository: {
     find: jest.Mock;
@@ -53,7 +54,7 @@ describe('TasksService', () => {
     emitTaskMoved: jest.Mock;
     emitTaskDeleted: jest.Mock;
   };
-  let notificationsService: { create: jest.Mock };
+  let notificationsService: { create: jest.Mock; notifyTaskEvent: jest.Mock };
 
   const buildTask = (overrides: Partial<Task> = {}): Task =>
     Object.assign(new Task(), {
@@ -99,6 +100,7 @@ describe('TasksService', () => {
       update: jest.fn().mockResolvedValue(undefined),
       softRemove: jest.fn().mockResolvedValue(undefined),
       createQueryBuilder: jest.fn(() => buildQueryBuilder({ max: '-1' })),
+      manager: { query: jest.fn().mockResolvedValue([{ last_number: 1 }]) },
     };
     taskLinkRepository = {
       find: jest.fn(),
@@ -117,7 +119,10 @@ describe('TasksService', () => {
       emitTaskMoved: jest.fn(),
       emitTaskDeleted: jest.fn(),
     };
-    notificationsService = { create: jest.fn().mockResolvedValue(undefined) };
+    notificationsService = {
+      create: jest.fn().mockResolvedValue(undefined),
+      notifyTaskEvent: jest.fn().mockResolvedValue(undefined),
+    };
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [

@@ -5,6 +5,21 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from '@/app.module';
 
 async function bootstrap(): Promise<void> {
+  if (process.env.NODE_ENV === 'production') {
+    const access = process.env.JWT_ACCESS_SECRET;
+    const refresh = process.env.JWT_REFRESH_SECRET;
+    if (
+      !access ||
+      !refresh ||
+      access.length < 32 ||
+      refresh.length < 32 ||
+      access === refresh
+    ) {
+      throw new Error(
+        'Production requires distinct JWT_ACCESS_SECRET and JWT_REFRESH_SECRET values of at least 32 characters',
+      );
+    }
+  }
   const app = await NestFactory.create(AppModule);
 
   app.setGlobalPrefix('api/v1');

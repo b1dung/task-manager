@@ -52,7 +52,7 @@ export function RegisterPage() {
       ),
     onSuccess: (res) => {
       if (res.status === 'active') {
-        setAuth(res.user, res.accessToken, res.refreshToken)
+        setAuth(res.user, res.accessToken, '')
         navigate('/projects')
       } else {
         setSubmitted(true)

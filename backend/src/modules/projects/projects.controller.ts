@@ -2,7 +2,6 @@ import {
   Body,
   Controller,
   Delete,
-  ForbiddenException,
   Get,
   Param,
   ParseUUIDPipe,
@@ -18,6 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
 import { RequirePermissions } from '@/modules/auth/decorators/require-permissions.decorator';
+import { UserPermissions } from '@/modules/auth/decorators/user-permissions.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/modules/auth/guards/permissions.guard';
 import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
@@ -50,11 +50,18 @@ export class ProjectsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List projects the current user is a member of' })
+  @ApiOperation({
+    summary:
+      'List projects the user is a member of (or all projects with view_all_projects)',
+  })
   async findAll(
     @CurrentUser() user: JwtPayload,
+    @UserPermissions() permissions: string[],
   ): Promise<{ success: true; data: Project[] }> {
-    const data = await this.projectsService.findAllForUser(user.sub);
+    const data = await this.projectsService.findAllForUser(
+      user.sub,
+      permissions.includes('view_all_projects'),
+    );
     return { success: true, data };
   }
 
@@ -70,36 +77,24 @@ export class ProjectsController {
 
   @UseGuards(ProjectMemberGuard)
   @Patch(':id')
-  @ApiOperation({ summary: 'Update a project (owner only)' })
+  @RequirePermissions('edit_project')
+  @ApiOperation({ summary: 'Update a project (requires edit_project)' })
   async update(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: JwtPayload,
     @Body() dto: UpdateProjectDto,
   ): Promise<{ success: true; data: Project }> {
-    const project = await this.projectsService.findById(id);
-    this.assertOwner(project, user.sub);
     const data = await this.projectsService.update(id, dto);
     return { success: true, data };
   }
 
   @UseGuards(ProjectMemberGuard)
   @Delete(':id')
-  @ApiOperation({ summary: 'Delete a project (owner only)' })
+  @RequirePermissions('delete_project')
+  @ApiOperation({ summary: 'Delete a project (requires delete_project)' })
   async remove(
     @Param('id', ParseUUIDPipe) id: string,
-    @CurrentUser() user: JwtPayload,
   ): Promise<{ success: true; data: null }> {
-    const project = await this.projectsService.findById(id);
-    this.assertOwner(project, user.sub);
     await this.projectsService.remove(id);
     return { success: true, data: null };
-  }
-
-  private assertOwner(project: Project, userId: string): void {
-    if (project.ownerId !== userId) {
-      throw new ForbiddenException(
-        'Only the project owner can perform this action',
-      );
-    }
   }
 }

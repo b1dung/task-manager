@@ -31,6 +31,14 @@ export function ToastContainer() {
         >
           {icons[t.type]}
           <p className="flex-1 text-sm text-fg">{t.message}</p>
+          {t.action && (
+            <button
+              onClick={() => { t.action!.onClick(); removeToast(t.id) }}
+              className="shrink-0 text-sm font-semibold text-accent hover:underline"
+            >
+              {t.action.label}
+            </button>
+          )}
           <button
             onClick={() => removeToast(t.id)}
             className="text-fg-subtle hover:text-fg"

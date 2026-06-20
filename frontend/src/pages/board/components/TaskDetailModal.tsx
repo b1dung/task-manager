@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -15,7 +16,7 @@ import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import TiptapUnderline from '@tiptap/extension-underline'
 import TextAlign from '@tiptap/extension-text-align'
-import TiptapImage from '@tiptap/extension-image'
+import { SecureImage } from './SecureImage'
 import TiptapLink from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import Highlight from '@tiptap/extension-highlight'
@@ -25,12 +26,13 @@ import { membersApi } from '@/api/members'
 import { labelsApi } from '@/api/labels'
 import { attachmentsApi } from '@/api/attachments'
 import { apiClient } from '@/api/client'
-import { Avatar, Button, Dropdown, Skeleton } from '@/components/ui'
+import { Avatar, Button, ConfirmDialog, Dropdown, Skeleton } from '@/components/ui'
 import { TaskIcon, SubtaskIcon } from '@/components/ui/TaskIcons'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { usePermissions } from '@/hooks/usePermissions'
 import { useTaskStore } from '@/stores/useTaskStore'
 import { useToast } from '@/hooks/useToast'
-import { cn, formatDate, formatRelative } from '@/lib/utils'
+import { cn, formatRelative } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -125,6 +127,9 @@ interface Props {
 export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', open, onClose, onOpenTask }: Props) {
   const qc = useQueryClient()
   const toast = useToast()
+  const permissions = usePermissions()
+  const canDeleteTask = permissions.includes('approve_task')
+  const canArchiveTask = permissions.includes('update_own_task')
   const [tab, setTab] = useState<TabType>('comments')
 
   const targetId = task?.id ?? taskId
@@ -181,6 +186,40 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
     },
   })
 
+  const [confirmAction, setConfirmAction] = useState<'delete' | 'archive' | null>(null)
+
+  const { mutate: deleteTask, isPending: deletingTask } = useMutation({
+    mutationFn: () => tasksApi.delete(projectId, t!.id),
+    onSuccess: () => {
+      const taskId = t!.id
+      const title = t!.title
+      qc.invalidateQueries({ queryKey: ['tasks', projectId] })
+      setConfirmAction(null)
+      onClose()
+      toast.undo(`Đã xóa "${title}"`, () => {
+        tasksApi.restore(projectId, taskId)
+          .then(() => {
+            qc.invalidateQueries({ queryKey: ['tasks', projectId] })
+            toast.success('Đã hoàn lại task')
+          })
+          .catch(() => toast.error('Hoàn tác thất bại'))
+      })
+    },
+    onError: () => toast.error('Xóa task thất bại'),
+  })
+
+  const { mutate: archiveTask, isPending: archivingTask } = useMutation({
+    mutationFn: () => tasksApi.archive(projectId, t!.id),
+    onSuccess: () => {
+      const title = t!.title
+      qc.invalidateQueries({ queryKey: ['tasks', projectId] })
+      setConfirmAction(null)
+      onClose()
+      toast.success(`Đã lưu trữ "${title}"`)
+    },
+    onError: () => toast.error('Lưu trữ task thất bại'),
+  })
+
   useEffect(() => {
     if (!open) return
     const handler = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
@@ -225,6 +264,8 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
           projectKey={projectKey}
           onClose={onClose}
           onOpenParent={onOpenTask}
+          onDelete={t && canDeleteTask ? () => setConfirmAction('delete') : undefined}
+          onArchive={t && canArchiveTask ? () => setConfirmAction('archive') : undefined}
         />
 
         {/* Loading overlay while fetching subtask */}
@@ -308,18 +349,42 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
           />
         </div>}
       </div>
+
+      <ConfirmDialog
+        open={confirmAction === 'delete'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => deleteTask()}
+        title="Xóa task"
+        message={<>Bạn có chắc muốn xóa task <span className="font-medium text-fg">"{t?.title}"</span>? Bạn có 10 giây để hoàn tác sau khi xóa.</>}
+        confirmLabel="Xóa vĩnh viễn"
+        requireText="delete"
+        loading={deletingTask}
+      />
+      <ConfirmDialog
+        open={confirmAction === 'archive'}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => archiveTask()}
+        title="Lưu trữ task"
+        message={<>Đưa task <span className="font-medium text-fg">"{t?.title}"</span> vào lưu trữ? Task sẽ bị ẩn khỏi board nhưng dữ liệu được giữ nguyên.</>}
+        confirmLabel="Lưu trữ"
+        requireText="archive"
+        danger={false}
+        loading={archivingTask}
+      />
     </div>
   )
 }
 
 // ─── Detail Header ────────────────────────────────────────────────────────────
 
-function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onOpenParent }: {
+function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onOpenParent, onDelete, onArchive }: {
   displayId: string
   parentTask: Task | null | undefined
   projectKey?: string
   onClose: () => void
   onOpenParent?: (taskId: string) => void
+  onDelete?: () => void
+  onArchive?: () => void
 }) {
   const toast = useToast()
 
@@ -392,8 +457,8 @@ function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onO
           items={[
             { label: 'Copy link', icon: <Link2 className="w-4 h-4" />, onClick: () => navigator.clipboard.writeText(window.location.href) },
             { label: 'Duplicate', icon: <AlignLeft className="w-4 h-4" />, onClick: () => toast.info('Duplicate chưa hỗ trợ') },
-            { label: 'Archive', icon: <Lock className="w-4 h-4" />, onClick: () => toast.info('Archive chưa hỗ trợ') },
-            { label: 'Delete', icon: <Trash2 className="w-4 h-4" />, onClick: () => toast.info('Dùng nút Delete trong board'), danger: true },
+            { label: 'Archive', icon: <Lock className="w-4 h-4" />, onClick: () => onArchive?.(), disabled: !onArchive },
+            { label: 'Delete', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete?.(), danger: true, disabled: !onDelete },
           ]}
         />
 
@@ -496,7 +561,7 @@ function DescriptionEditor({ task, onSave }: { task: Task; onSave: (d: string) =
       StarterKit,
       TiptapUnderline,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      TiptapImage.configure({ allowBase64: false, inline: false }),
+      SecureImage.configure({ allowBase64: false, inline: false, projectId: task.projectId }),
       TiptapLink.configure({ openOnClick: false }),
       Placeholder.configure({ placeholder: 'Thêm mô tả cho task…' }),
       Highlight,
@@ -665,7 +730,7 @@ function DescriptionEditor({ task, onSave }: { task: Task; onSave: (d: string) =
         {/* Editor area */}
         <EditorContent
           editor={editor}
-          className="min-h-[120px] px-3 py-2.5 text-sm text-fg bg-bg-elevated cursor-text"
+          className="min-h-[120px] max-h-[500px] overflow-y-auto scrollbar-thin px-3 py-2.5 text-sm text-fg bg-bg-elevated cursor-text"
         />
       </div>
 
@@ -753,10 +818,9 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
     onError: () => toast.error('Xóa file thất bại (chỉ xóa được file của bạn)'),
   })
 
-  const download = async (fileUrl: string, fileName: string) => {
+  const download = async (id: string, fileName: string) => {
     try {
-      const res = await fetch(fileUrl)
-      const blob = await res.blob()
+      const blob = await attachmentsApi.download(projectId, task.id, id)
       const url = URL.createObjectURL(blob)
       const el = document.createElement('a')
       el.href = url; el.download = fileName.normalize('NFC'); el.click()
@@ -775,7 +839,6 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
       </p>
       <div className="space-y-1.5">
         {attachments.map((a) => {
-          const isImage = a.mimeType.startsWith('image/')
           const canDelete = a.uploaderId === currentUserId
           return (
             <div
@@ -783,17 +846,14 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
               className="group flex items-center gap-3 rounded-lg border border-border bg-bg-surface px-3 py-2 hover:bg-bg-subtle transition-colors"
             >
               {/* Thumbnail / icon */}
-              <a
-                href={a.fileUrl}
-                target="_blank"
-                rel="noreferrer"
+              <button
+                type="button"
+                onClick={() => download(a.id, a.fileName)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-bg-subtle text-fg-subtle"
                 title="Mở file"
               >
-                {isImage
-                  ? <img src={a.fileUrl} alt={a.fileName} className="h-full w-full object-cover" loading="lazy" />
-                  : <FileText className="h-4 w-4" />}
-              </a>
+                <FileText className="h-4 w-4" />
+              </button>
 
               {/* Info */}
               <div className="min-w-0 flex-1">
@@ -804,7 +864,7 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
               {/* Actions */}
               <div className="flex items-center gap-1 shrink-0">
                 <button
-                  onClick={() => download(a.fileUrl, a.fileName)}
+                  onClick={() => download(a.id, a.fileName)}
                   className="rounded-md p-1.5 text-fg-subtle hover:bg-bg-elevated hover:text-fg transition-colors"
                   title="Tải về"
                 >
@@ -1724,6 +1784,7 @@ function AssigneeField({ task, members, onUpdate }: {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const { user: me } = useAuthStore()
+  const canAssign = usePermissions().includes('assign_tasks')
 
   useEffect(() => {
     if (!open) return
@@ -1734,6 +1795,18 @@ function AssigneeField({ task, members, onUpdate }: {
 
   // Use task.assignee object directly (from store/server); fallback to members list lookup
   const assigneeUser = task.assignee ?? members.find(m => m.userId === task.assigneeId)?.user ?? null
+
+  // Without assign_tasks the backend rejects any assignee change — show read-only.
+  if (!canAssign) {
+    return (
+      <div className="flex items-center gap-1.5">
+        {assigneeUser
+          ? <><Avatar name={assigneeUser.fullName} avatarUrl={assigneeUser.avatarUrl} size="xs" /><span className="text-sm text-fg">{assigneeUser.fullName}</span></>
+          : <span className="text-sm text-fg-muted">Unassigned</span>
+        }
+      </div>
+    )
+  }
 
   return (
     <div ref={ref} className="relative">

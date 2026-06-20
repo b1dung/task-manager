@@ -19,8 +19,7 @@ export const authApi = {
     apiClient.post<{ success: true; data: AuthResponse }>('/auth/login', dto).then((r) => r.data.data),
   register: (dto: RegisterDto) =>
     apiClient.post<{ success: true; data: RegisterResult }>('/auth/register', dto).then((r) => r.data.data),
-  logout: (refreshToken: string) =>
-    apiClient.post('/auth/logout', { refreshToken }),
+  logout: () => apiClient.post('/auth/logout', {}),
   me: () =>
     apiClient.get<{ success: true; data: AuthUser }>('/auth/me').then((r) => r.data.data),
 }

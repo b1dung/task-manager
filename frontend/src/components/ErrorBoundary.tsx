@@ -45,6 +45,7 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function withErrorBoundary<P extends object>(
   Component: React.ComponentType<P>,
   fallback?: ReactNode,

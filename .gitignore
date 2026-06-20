@@ -14,3 +14,4 @@ backend/uploads/
 frontend/dist/
 .claude/
 .git_bk/
+*.md

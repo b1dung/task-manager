@@ -61,7 +61,8 @@ export class TasksService {
       .createQueryBuilder('task')
       .leftJoinAndSelect('task.labels', 'label')
       .leftJoinAndSelect('task.assignee', 'assignee')
-      .where('task.projectId = :projectId', { projectId });
+      .where('task.projectId = :projectId', { projectId })
+      .andWhere('task.archivedAt IS NULL');
 
     // ── Subtask visibility ────────────────────────────────────────────────
     if (query.includeSubtasks === false) {
@@ -202,11 +203,11 @@ export class TasksService {
     }
 
     // ── Full-text search ──────────────────────────────────────────────────
-    if (query.q) {
-      qb.andWhere(
-        '(task.title ILIKE :q OR task.description ILIKE :q)',
-        { q: `%${query.q}%` },
-      );
+    const search = query.q ?? query.search;
+    if (search) {
+      qb.andWhere('(task.title ILIKE :q OR task.description ILIKE :q)', {
+        q: `%${search}%`,
+      });
     }
 
     // ── Sorting ───────────────────────────────────────────────────────────
@@ -239,7 +240,14 @@ export class TasksService {
       const parentIds = data.map((t) => t.id);
       const subtasks = await this.taskRepository.find({
         where: { parentTaskId: In(parentIds) },
-        select: { id: true, title: true, status: true, assigneeId: true, parentTaskId: true, taskNumber: true },
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          assigneeId: true,
+          parentTaskId: true,
+          taskNumber: true,
+        },
         relations: { assignee: true },
       });
       const byParent = new Map<string, Task[]>();
@@ -251,7 +259,9 @@ export class TasksService {
       for (const task of data) {
         const children = byParent.get(task.id) ?? [];
         task.subtaskCount = children.length;
-        task.doneSubtaskCount = children.filter((c) => c.status === 'done').length;
+        task.doneSubtaskCount = children.filter(
+          (c) => c.status === 'done',
+        ).length;
         task.subtasksPreview = children;
       }
     }
@@ -265,7 +275,12 @@ export class TasksService {
   async findById(projectId: string, id: string): Promise<Task> {
     const task = await this.taskRepository.findOne({
       where: { id, projectId },
-      relations: { labels: true, subtasks: true, parentTask: true, assignee: true },
+      relations: {
+        labels: true,
+        subtasks: true,
+        parentTask: true,
+        assignee: true,
+      },
     });
     if (!task) {
       throw new NotFoundException('Task not found');
@@ -305,12 +320,13 @@ export class TasksService {
       .where('task.columnId = :columnId', { columnId: dto.columnId })
       .getRawOne<{ max: string }>())!;
 
-    const { maxNum } = (await this.taskRepository
-      .createQueryBuilder('task')
-      .select('COALESCE(MAX(task.taskNumber), 0)', 'maxNum')
-      .where('task.projectId = :projectId', { projectId })
-      .withDeleted()
-      .getRawOne<{ maxNum: string }>())!;
+    const [counter] = (await this.taskRepository.manager.query(
+      `INSERT INTO project_task_counters(project_id, last_number)
+       VALUES ($1, 1)
+       ON CONFLICT (project_id) DO UPDATE SET last_number = project_task_counters.last_number + 1
+       RETURNING last_number`,
+      [projectId],
+    )) as [{ last_number: number }];
 
     const task = this.taskRepository.create({
       projectId,
@@ -328,23 +344,24 @@ export class TasksService {
       estimatedHours: dto.estimatedHours ?? null,
       storyPoints: dto.storyPoints ?? null,
       position: Number(max) + 1,
-      taskNumber: Number(maxNum) + 1,
+      taskNumber: Number(counter.last_number),
       labels,
     });
     const saved = await this.taskRepository.save(task);
     const created = await this.findById(projectId, saved.id);
 
     this.gateway.emitTaskCreated(projectId, created);
-    if (created.assigneeId && created.assigneeId !== reporterId) {
-      await this.notificationsService.create({
-        recipientId: created.assigneeId,
-        actorId: reporterId,
-        type: NotificationType.TASK_ASSIGNED,
-        entityType: 'task',
-        entityId: created.id,
-        message: `You were assigned to "${created.title}"`,
-      });
-    }
+    await this.notificationsService.notifyTaskEvent({
+      projectId,
+      actorId: reporterId,
+      type: NotificationType.TASK_CREATED,
+      entityType: 'task',
+      entityId: created.id,
+      message: created.assignee
+        ? `created "${created.title}" and assigned ${created.assignee.fullName}`
+        : `created "${created.title}"`,
+      directRecipientIds: [created.assigneeId],
+    });
 
     return created;
   }
@@ -419,18 +436,27 @@ export class TasksService {
     const updated = await this.findById(projectId, id);
 
     this.gateway.emitTaskUpdated(projectId, updated);
-    if (
-      updated.assigneeId &&
-      updated.assigneeId !== previousAssigneeId &&
-      updated.assigneeId !== actorId
-    ) {
-      await this.notificationsService.create({
-        recipientId: updated.assigneeId,
+    const assigneeChanged =
+      updated.assigneeId && updated.assigneeId !== previousAssigneeId;
+    if (assigneeChanged) {
+      await this.notificationsService.notifyTaskEvent({
+        projectId,
         actorId,
         type: NotificationType.TASK_ASSIGNED,
         entityType: 'task',
         entityId: updated.id,
-        message: `You were assigned to "${updated.title}"`,
+        message: `assigned "${updated.title}" to ${updated.assignee?.fullName ?? 'someone'}`,
+        directRecipientIds: [updated.assigneeId, updated.reporterId],
+      });
+    } else {
+      await this.notificationsService.notifyTaskEvent({
+        projectId,
+        actorId,
+        type: NotificationType.TASK_UPDATED,
+        entityType: 'task',
+        entityId: updated.id,
+        message: `updated "${updated.title}"`,
+        directRecipientIds: [updated.assigneeId, updated.reporterId],
       });
     }
 
@@ -442,16 +468,50 @@ export class TasksService {
     await this.taskRepository.softRemove(task);
     this.gateway.emitTaskDeleted(projectId, task.id);
 
-    if (task.assigneeId && task.assigneeId !== actorId) {
-      await this.notificationsService.create({
-        recipientId: task.assigneeId,
-        actorId,
-        type: NotificationType.TASK_UPDATED,
-        entityType: 'task',
-        entityId: task.id,
-        message: `"${task.title}" was deleted`,
-      });
+    await this.notificationsService.notifyTaskEvent({
+      projectId,
+      actorId,
+      type: NotificationType.TASK_UPDATED,
+      entityType: 'task',
+      entityId: task.id,
+      message: `deleted "${task.title}"`,
+      directRecipientIds: [task.assigneeId, task.reporterId],
+    });
+  }
+
+  /** Recover a soft-deleted task (undo delete). */
+  async restore(projectId: string, id: string): Promise<Task> {
+    const existing = await this.taskRepository.findOne({
+      where: { id, projectId },
+      withDeleted: true,
+    });
+    if (!existing) {
+      throw new NotFoundException('Task not found');
     }
+    await this.taskRepository.restore(id);
+    const restored = await this.findById(projectId, id);
+    this.gateway.emitTaskCreated(projectId, restored);
+    return restored;
+  }
+
+  /** Archive (hide from the board, keep data) or restore an archived task. */
+  async setArchived(
+    projectId: string,
+    id: string,
+    archived: boolean,
+    actorId?: string,
+  ): Promise<Task> {
+    const task = await this.findById(projectId, id);
+    task.archivedAt = archived ? new Date() : null;
+    task.archivedBy = archived ? (actorId ?? null) : null;
+    await this.taskRepository.save(task);
+    const updated = await this.findById(projectId, id);
+    if (archived) {
+      this.gateway.emitTaskDeleted(projectId, id);
+    } else {
+      this.gateway.emitTaskCreated(projectId, updated);
+    }
+    return updated;
   }
 
   async move(
@@ -471,21 +531,25 @@ export class TasksService {
     if (task.columnId === dto.columnId) {
       await this.reorderWithinColumn(task, dto.position);
     } else {
-      await this.moveAcrossColumns(task, dto.columnId, dto.position, targetColumn);
+      await this.moveAcrossColumns(
+        task,
+        dto.columnId,
+        dto.position,
+        targetColumn,
+      );
     }
 
     const moved = await this.findById(projectId, id);
     this.gateway.emitTaskMoved(projectId, moved);
-    if (moved.assigneeId && moved.assigneeId !== actorId) {
-      await this.notificationsService.create({
-        recipientId: moved.assigneeId,
-        actorId,
-        type: NotificationType.TASK_MOVED,
-        entityType: 'task',
-        entityId: moved.id,
-        message: `"${moved.title}" was moved to ${targetColumn.name}`,
-      });
-    }
+    await this.notificationsService.notifyTaskEvent({
+      projectId,
+      actorId,
+      type: NotificationType.TASK_MOVED,
+      entityType: 'task',
+      entityId: moved.id,
+      message: `moved "${moved.title}" to ${targetColumn.name}`,
+      directRecipientIds: [moved.assigneeId, moved.reporterId],
+    });
 
     return moved;
   }
@@ -496,11 +560,28 @@ export class TasksService {
     hours: number,
     actorId: string,
   ): Promise<Task> {
+    await this.findById(projectId, id);
+    await this.taskRepository
+      .createQueryBuilder()
+      .update(Task)
+      .set({
+        loggedHours: () =>
+          `GREATEST(0, COALESCE(logged_hours, 0) + ${Number(hours)})`,
+      })
+      .where('id = :id', { id })
+      .execute();
     const task = await this.findById(projectId, id);
-    const base = Number(task.loggedHours) || 0;
-    const newLogged = Math.max(0, base + hours);
-    await this.taskRepository.update(id, { loggedHours: newLogged });
-    return this.findById(projectId, id);
+
+    await this.notificationsService.notifyTaskEvent({
+      projectId,
+      actorId,
+      type: NotificationType.TIME_LOGGED,
+      entityType: 'task',
+      entityId: id,
+      message: `logged ${hours}h on "${task.title}"`,
+      directRecipientIds: [task.assigneeId, task.reporterId],
+    });
+    return task;
   }
 
   private async reorderWithinColumn(

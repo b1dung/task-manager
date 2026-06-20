@@ -11,6 +11,7 @@ import { Task } from '@/modules/tasks/entities/task.entity';
 import { TasksController } from '@/modules/tasks/tasks.controller';
 import { TasksService } from '@/modules/tasks/tasks.service';
 import { WebsocketModule } from '@/modules/websocket/websocket.module';
+import { RolesModule } from '@/modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { WebsocketModule } from '@/modules/websocket/websocket.module';
     CommonModule,
     WebsocketModule,
     NotificationsModule,
+    RolesModule,
   ],
   controllers: [TasksController],
   providers: [TasksService],

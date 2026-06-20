@@ -16,7 +16,18 @@ export class JwtRefreshStrategy extends PassportStrategy(
 ) {
   constructor(config: ConfigService) {
     super({
-      jwtFromRequest: ExtractJwt.fromBodyField('refreshToken'),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        ExtractJwt.fromBodyField('refreshToken'),
+        (req: Request) => {
+          const cookie = req.headers.cookie
+            ?.split(';')
+            .map((part) => part.trim())
+            .find((part) => part.startsWith('refresh_token='));
+          return cookie
+            ? decodeURIComponent(cookie.slice('refresh_token='.length))
+            : null;
+        },
+      ]),
       ignoreExpiration: false,
       passReqToCallback: true,
       secretOrKey: config.get<string>(
@@ -27,8 +38,14 @@ export class JwtRefreshStrategy extends PassportStrategy(
   }
 
   validate(req: Request, payload: JwtPayload): JwtRefreshPayload {
+    const bodyToken = (req.body as { refreshToken?: string }).refreshToken;
+    const cookie = req.headers.cookie
+      ?.split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith('refresh_token='));
     const refreshToken =
-      (req.body as { refreshToken?: string }).refreshToken ?? '';
+      bodyToken ??
+      (cookie ? decodeURIComponent(cookie.slice('refresh_token='.length)) : '');
     return { ...payload, refreshToken };
   }
 }

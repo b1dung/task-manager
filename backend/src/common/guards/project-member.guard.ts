@@ -7,8 +7,10 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Request } from 'express';
 import { Repository } from 'typeorm';
+import { UserRole } from '@shared/enums';
 import { ProjectMember } from '@/modules/members/entities/project-member.entity';
 import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
+import { RolesService } from '@/modules/roles/roles.service';
 
 export interface RequestWithProjectMember extends Request {
   user: JwtPayload;
@@ -20,6 +22,7 @@ export class ProjectMemberGuard implements CanActivate {
   constructor(
     @InjectRepository(ProjectMember)
     private readonly projectMemberRepository: Repository<ProjectMember>,
+    private readonly rolesService: RolesService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -40,11 +43,25 @@ export class ProjectMemberGuard implements CanActivate {
       where: { projectId, userId },
     });
 
-    if (!member) {
-      throw new ForbiddenException('You are not a member of this project');
+    if (member) {
+      request.projectMember = member;
+      return true;
     }
 
-    request.projectMember = member;
-    return true;
+    // Super users (view_all_projects) can access any project without being a
+    // member. They act as a project admin so they retain full control.
+    const permissions = await this.rolesService.resolvePermissions(
+      request.user,
+    );
+    if (permissions.includes('view_all_projects')) {
+      request.projectMember = {
+        projectId,
+        userId,
+        role: UserRole.ADMIN,
+      } as ProjectMember;
+      return true;
+    }
+
+    throw new ForbiddenException('You are not a member of this project');
   }
 }

@@ -40,7 +40,9 @@ export class ReportsController {
   }
 
   @Get('developer-report')
-  @ApiOperation({ summary: 'Per-developer performance report for a date range' })
+  @ApiOperation({
+    summary: 'Per-developer performance report for a date range',
+  })
   async developerReport(
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @Query() query: QueryReportsDto,

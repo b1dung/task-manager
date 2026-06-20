@@ -19,7 +19,10 @@ function toArray<T>(value: unknown): T[] | undefined {
   if (value === undefined || value === null) return undefined;
   if (Array.isArray(value)) return value as T[];
   if (typeof value === 'string') {
-    const parts = value.split(',').map((s) => s.trim()).filter(Boolean);
+    const parts = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     return parts.length ? (parts as T[]) : undefined;
   }
   return [value as T];
@@ -165,7 +168,10 @@ export class QueryTasksDto {
   @IsBoolean()
   hasSubtask?: boolean;
 
-  @ApiPropertyOptional({ description: 'false = only parent tasks (no subtasks), default includes all' })
+  @ApiPropertyOptional({
+    description:
+      'false = only parent tasks (no subtasks), default includes all',
+  })
   @IsOptional()
   @Transform(({ value }) => {
     if (value === 'true' || value === true) return true;
@@ -181,6 +187,12 @@ export class QueryTasksDto {
   @IsOptional()
   @IsString()
   q?: string;
+
+  /** Backward-compatible alias for q. */
+  @ApiPropertyOptional({ description: 'Alias for q' })
+  @IsOptional()
+  @IsString()
+  search?: string;
 
   // ── Pagination & sorting ──────────────────────────────────────────────────
 
@@ -200,7 +212,14 @@ export class QueryTasksDto {
 
   @ApiPropertyOptional({
     default: 'position',
-    enum: ['position', 'createdAt', 'updatedAt', 'dueDate', 'priority', 'title'],
+    enum: [
+      'position',
+      'createdAt',
+      'updatedAt',
+      'dueDate',
+      'priority',
+      'title',
+    ],
   })
   @IsOptional()
   @IsIn(['position', 'createdAt', 'updatedAt', 'dueDate', 'priority', 'title'])

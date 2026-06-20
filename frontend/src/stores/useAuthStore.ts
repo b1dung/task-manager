@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { queryClient } from '@/lib/queryClient'
 
 export interface AuthUser {
   id: string
@@ -32,9 +33,13 @@ export const useAuthStore = create<AuthState>()(
       setTokens: (accessToken, refreshToken) =>
         set({ accessToken, refreshToken }),
       setUser: (user) => set({ user }),
-      logout: () =>
-        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false }),
+      logout: () => {
+        // Wipe all cached queries so the next user never sees the previous
+        // user's permissions, projects, notifications, etc.
+        queryClient.clear()
+        set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
+      },
     }),
-    { name: 'auth-storage', partialize: (s) => ({ user: s.user, accessToken: s.accessToken, refreshToken: s.refreshToken, isAuthenticated: s.isAuthenticated }) },
+    { name: 'auth-storage', partialize: (s) => ({ user: s.user, isAuthenticated: s.isAuthenticated }) },
   ),
 )

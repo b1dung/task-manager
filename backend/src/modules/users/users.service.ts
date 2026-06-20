@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -87,6 +88,14 @@ export class UsersService {
     return user;
   }
 
+  findActiveById(id: string): Promise<User | null> {
+    return this.userRepository.findOne({ where: { id, isActive: true } });
+  }
+
+  countActiveByRoleId(roleId: string): Promise<number> {
+    return this.userRepository.count({ where: { roleId, isActive: true } });
+  }
+
   async findByEmailWithPassword(email: string): Promise<User | null> {
     return this.userRepository
       .createQueryBuilder('user')
@@ -111,5 +120,31 @@ export class UsersService {
   async updateAvatar(id: string, avatarUrl: string): Promise<User> {
     await this.userRepository.update(id, { avatarUrl });
     return this.findById(id);
+  }
+
+  /**
+   * Permanently delete a user. Projects they own are cascade-deleted (with all
+   * their tasks/columns/etc.); tasks/attachments they touched elsewhere keep the
+   * record with the author set to null. Admins cannot delete their own account.
+   */
+  async remove(id: string, requesterId: string): Promise<void> {
+    if (id === requesterId) {
+      throw new BadRequestException(
+        'Bạn không thể xóa tài khoản của chính mình',
+      );
+    }
+    const user = await this.userRepository.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.userRepository.manager.transaction(async (m) => {
+      // Owned projects cascade to their columns/tasks/sprints/labels/members.
+      await m.query('DELETE FROM projects WHERE owner_id = $1', [id]);
+      // activity_logs.user_id is NOT NULL, so the FK's SET NULL action can't run.
+      await m.query('DELETE FROM activity_logs WHERE user_id = $1', [id]);
+      // Cascades memberships, refresh tokens, comments, notifications, working hours.
+      await m.delete(User, id);
+    });
   }
 }

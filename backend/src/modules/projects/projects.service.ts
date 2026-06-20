@@ -60,7 +60,21 @@ export class ProjectsService {
     return this.findById(project.id);
   }
 
-  async findAllForUser(userId: string): Promise<Project[]> {
+  async findAllForUser(
+    userId: string,
+    canViewAll = false,
+  ): Promise<Project[]> {
+    // Super users (view_all_projects) see every project, even ones they were
+    // never added to as a member. Archived/soft-deleted projects stay hidden.
+    if (canViewAll) {
+      return this.projectRepository
+        .createQueryBuilder('project')
+        .leftJoinAndSelect('project.owner', 'owner')
+        .where('project.archivedAt IS NULL')
+        .orderBy('project.createdAt', 'DESC')
+        .getMany();
+    }
+
     const memberships = await this.projectMemberRepository.find({
       where: { userId },
     });
@@ -72,8 +86,46 @@ export class ProjectsService {
       .createQueryBuilder('project')
       .leftJoinAndSelect('project.owner', 'owner')
       .where('project.id IN (:...projectIds)', { projectIds })
+      .andWhere('project.archivedAt IS NULL')
       .orderBy('project.createdAt', 'DESC')
       .getMany();
+  }
+
+  /** Management view (admins/owners): every non-deleted project — including
+   * archived ones — enriched with task & member counts. */
+  async findAllForManagement(): Promise<Project[]> {
+    const projects = await this.projectRepository
+      .createQueryBuilder('project')
+      .leftJoinAndSelect('project.owner', 'owner')
+      .orderBy('project.archivedAt', 'ASC', 'NULLS FIRST')
+      .addOrderBy('project.createdAt', 'DESC')
+      .getMany();
+    if (projects.length === 0) return [];
+
+    const ids = projects.map((p) => p.id);
+    const taskRows: { pid: string; c: number }[] =
+      await this.projectRepository.manager.query(
+        `SELECT project_id AS pid, COUNT(*)::int AS c
+           FROM tasks
+          WHERE deleted_at IS NULL AND project_id = ANY($1)
+          GROUP BY project_id`,
+        [ids],
+      );
+    const memberRows = await this.projectMemberRepository
+      .createQueryBuilder('m')
+      .select('m.projectId', 'pid')
+      .addSelect('COUNT(*)', 'c')
+      .where('m.projectId IN (:...ids)', { ids })
+      .groupBy('m.projectId')
+      .getRawMany<{ pid: string; c: string }>();
+
+    const taskMap = new Map(taskRows.map((r) => [r.pid, Number(r.c)]));
+    const memberMap = new Map(memberRows.map((r) => [r.pid, Number(r.c)]));
+    for (const p of projects) {
+      p.taskCount = taskMap.get(p.id) ?? 0;
+      p.memberCount = memberMap.get(p.id) ?? 0;
+    }
+    return projects;
   }
 
   async findById(id: string): Promise<Project> {
@@ -93,9 +145,41 @@ export class ProjectsService {
     return this.projectRepository.save(project);
   }
 
+  /** Soft delete — keeps all project data, just hides it. */
   async remove(id: string): Promise<void> {
     const project = await this.findById(id);
-    await this.projectRepository.remove(project);
+    await this.projectRepository.softRemove(project);
+  }
+
+  /** Recover a soft-deleted project (undo delete). */
+  async restore(id: string): Promise<Project> {
+    const existing = await this.projectRepository.findOne({
+      where: { id },
+      withDeleted: true,
+    });
+    if (!existing) {
+      throw new NotFoundException('Project not found');
+    }
+    await this.projectRepository.restore(id);
+    return this.findById(id);
+  }
+
+  async setArchived(
+    id: string,
+    archived: boolean,
+    actorId?: string,
+  ): Promise<Project> {
+    const project = await this.findById(id);
+    project.archivedAt = archived ? new Date() : null;
+    project.archivedBy = archived ? (actorId ?? null) : null;
+    return this.projectRepository.save(project);
+  }
+
+  async countTasks(id: string): Promise<number> {
+    return this.projectRepository.manager.query(
+      `SELECT COUNT(*)::int AS c FROM tasks WHERE deleted_at IS NULL AND project_id = $1`,
+      [id],
+    ).then((rows: { c: number }[]) => rows[0]?.c ?? 0);
   }
 
   private async generateUniqueSlug(name: string): Promise<string> {

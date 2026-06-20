@@ -15,13 +15,19 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/modules/auth/decorators/current-user.decorator';
-import { RequirePermissions } from '@/modules/auth/decorators/require-permissions.decorator';
+import {
+  RequireAnyPermissions,
+  RequirePermissions,
+} from '@/modules/auth/decorators/require-permissions.decorator';
+import { UserPermissions } from '@/modules/auth/decorators/user-permissions.decorator';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '@/modules/auth/guards/permissions.guard';
 import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
 import { CreateInviteDto } from '@/modules/invites/dto/create-invite.dto';
 import { Invite } from '@/modules/invites/entities/invite.entity';
 import { InvitesService } from '@/modules/invites/invites.service';
+import { RateLimitGuard } from '@/modules/auth/guards/rate-limit.guard';
+import { RolesService } from '@/modules/roles/roles.service';
 
 interface InviteView {
   id: string;
@@ -38,6 +44,7 @@ export class InvitesController {
   constructor(
     private readonly invitesService: InvitesService,
     private readonly configService: ConfigService,
+    private readonly rolesService: RolesService,
   ) {}
 
   private toView(invite: Invite): InviteView {
@@ -62,13 +69,24 @@ export class InvitesController {
   @Post()
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage_users')
+  @RequireAnyPermissions('manage_users', 'invite_client')
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ summary: 'Create an invite link (requires manage_users)' })
   async create(
     @CurrentUser() user: JwtPayload,
     @Body() dto: CreateInviteDto,
+    @UserPermissions() permissions: string[],
   ): Promise<{ success: true; data: InviteView & { link: string } }> {
+    if (!permissions.includes('manage_users')) {
+      if (
+        !dto.roleId ||
+        (await this.rolesService.findOne(dto.roleId)).key !== 'client'
+      ) {
+        throw new BadRequestException(
+          'invite_client can only assign the Client role',
+        );
+      }
+    }
     const { invite, token } = await this.invitesService.create(
       dto.email,
       dto.roleId ?? null,
@@ -103,12 +121,14 @@ export class InvitesController {
   }
 
   @Get('validate')
+  @UseGuards(RateLimitGuard)
   @ApiOperation({
     summary: 'Validate an invite token (public — used by the register page)',
   })
-  async validate(
-    @Query('token') token?: string,
-  ): Promise<{ success: true; data: { email: string; roleName: string | null } }> {
+  async validate(@Query('token') token?: string): Promise<{
+    success: true;
+    data: { email: string; roleName: string | null };
+  }> {
     const invite = await this.invitesService.findValidByToken(token ?? '');
     if (!invite) {
       throw new BadRequestException('Lời mời không hợp lệ hoặc đã hết hạn');

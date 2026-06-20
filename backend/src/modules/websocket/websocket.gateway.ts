@@ -13,6 +13,10 @@ import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
 import { Comment } from '@/modules/comments/entities/comment.entity';
 import { Notification } from '@/modules/notifications/entities/notification.entity';
 import { Task } from '@/modules/tasks/entities/task.entity';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { ProjectMember } from '@/modules/members/entities/project-member.entity';
+import { UsersService } from '@/modules/users/users.service';
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -25,7 +29,7 @@ const taskRoom = (taskId: string): string => `task:${taskId}`;
 const userRoom = (userId: string): string => `user:${userId}`;
 
 @WebSocketGateway({
-  cors: { origin: '*' },
+  cors: { origin: process.env.FRONTEND_URL ?? 'http://localhost:5173' },
 })
 export class TaskboardGateway
   implements OnGatewayConnection, OnGatewayDisconnect
@@ -38,9 +42,14 @@ export class TaskboardGateway
   constructor(
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly usersService: UsersService,
+    @InjectRepository(ProjectMember)
+    private readonly projectMemberRepository: Repository<ProjectMember>,
+    @InjectRepository(Task)
+    private readonly taskRepository: Repository<Task>,
   ) {}
 
-  handleConnection(client: AuthenticatedSocket): void {
+  async handleConnection(client: AuthenticatedSocket): Promise<void> {
     try {
       const token = this.extractToken(client);
       const payload = this.jwtService.verify<JwtPayload>(token, {
@@ -49,7 +58,14 @@ export class TaskboardGateway
           'dev_access_secret',
         ),
       });
-      client.data.user = payload;
+      const user = await this.usersService.findActiveById(payload.sub);
+      if (!user) throw new Error('Inactive account');
+      client.data.user = {
+        sub: user.id,
+        email: user.email,
+        role: user.role,
+        roleId: user.roleId,
+      };
       void client.join(userRoom(payload.sub));
     } catch {
       this.logger.debug(
@@ -66,14 +82,17 @@ export class TaskboardGateway
   }
 
   @SubscribeMessage('project:join')
-  handleJoinProject(
+  async handleJoinProject(
     client: AuthenticatedSocket,
     payload: { projectId: string },
-  ): void {
-    if (!payload?.projectId) {
+  ): Promise<void> {
+    if (!payload?.projectId || !client.data.user) {
       return;
     }
-    void client.join(projectRoom(payload.projectId));
+    const member = await this.projectMemberRepository.findOne({
+      where: { projectId: payload.projectId, userId: client.data.user.sub },
+    });
+    if (member) void client.join(projectRoom(payload.projectId));
   }
 
   @SubscribeMessage('project:leave')
@@ -88,14 +107,24 @@ export class TaskboardGateway
   }
 
   @SubscribeMessage('task:join')
-  handleJoinTask(
+  async handleJoinTask(
     client: AuthenticatedSocket,
     payload: { taskId: string },
-  ): void {
-    if (!payload?.taskId) {
+  ): Promise<void> {
+    if (!payload?.taskId || !client.data.user) {
       return;
     }
-    void client.join(taskRoom(payload.taskId));
+    const task = await this.taskRepository
+      .createQueryBuilder('task')
+      .innerJoin(
+        ProjectMember,
+        'pm',
+        'pm.project_id = task.project_id AND pm.user_id = :userId',
+        { userId: client.data.user.sub },
+      )
+      .where('task.id = :taskId', { taskId: payload.taskId })
+      .getOne();
+    if (task) void client.join(taskRoom(payload.taskId));
   }
 
   @SubscribeMessage('task:leave')

@@ -33,6 +33,16 @@ describe('Auth (e2e)', () => {
 
   afterAll(async () => {
     if (app) {
+      try {
+        const ds = app.get(DataSource);
+        await ds.query(
+          'DELETE FROM activity_logs WHERE user_id IN (SELECT id FROM users WHERE email = $1)',
+          [email],
+        );
+        await ds.query('DELETE FROM users WHERE email = $1', [email]);
+      } catch {
+        /* best-effort cleanup */
+      }
       await app.close();
     }
   }, 60000);

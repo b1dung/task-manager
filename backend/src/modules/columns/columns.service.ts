@@ -67,11 +67,14 @@ export class ColumnsService {
       );
     }
 
-    await Promise.all(
-      columnIds.map((id, position) =>
-        this.columnRepository.update({ id, projectId }, { position }),
-      ),
-    );
+    await this.columnRepository.manager.transaction(async (manager) => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+        `columns:${projectId}`,
+      ]);
+      for (const [position, id] of columnIds.entries()) {
+        await manager.update(BoardColumn, { id, projectId }, { position });
+      }
+    });
 
     return this.findAll(projectId);
   }

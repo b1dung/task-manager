@@ -9,8 +9,8 @@ interface TooltipProps {
 }
 
 export function Tooltip({ content, children, side = 'top', disabled = false }: TooltipProps) {
-  if (disabled) return <>{children}</>
   const [visible, setVisible] = useState(false)
+  if (disabled) return <>{children}</>
 
   const sideCls = {
     top: 'bottom-full left-1/2 -translate-x-1/2 mb-1.5',

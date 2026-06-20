@@ -18,11 +18,14 @@ interface BoardColumnViewProps {
   onDeleteColumn: (column: BoardColumn) => void
   onTaskClick: (task: Task) => void
   onSubtaskClick?: (taskId: string) => void
+  canCreateTask?: boolean
+  canEditColumn?: boolean
 }
 
 export function BoardColumnView({
   column, tasks, isLoading, projectKey,
   onAddTask, onEditColumn, onDeleteColumn, onTaskClick, onSubtaskClick,
+  canCreateTask = false, canEditColumn = false,
 }: BoardColumnViewProps) {
   // Only show parent tasks on the board; subtasks are inline inside their parent card
   const visibleTasks = tasks.filter((t) => t.parentTaskId === null)
@@ -76,7 +79,7 @@ export function BoardColumnView({
         ) : (
           <span
             className="flex-1 text-sm font-semibold text-fg cursor-pointer select-none"
-            onDoubleClick={() => setEditing(true)}
+            onDoubleClick={() => canEditColumn && setEditing(true)}
           >
             {column.name}
           </span>
@@ -86,7 +89,7 @@ export function BoardColumnView({
           {visibleTasks.length}
         </span>
 
-        <Dropdown
+        {canEditColumn && <Dropdown
           align="right"
           trigger={<Button variant="ghost" size="icon" className="h-6 w-6"><MoreHorizontal className="w-3.5 h-3.5" /></Button>}
           items={[
@@ -99,7 +102,7 @@ export function BoardColumnView({
               disabled: tasks.length > 0,  // use full tasks (incl subtasks) to prevent orphan subtasks
             },
           ]}
-        />
+        />}
       </div>
 
       {/* Task list */}
@@ -120,7 +123,7 @@ export function BoardColumnView({
       </div>
 
       {/* Add task button */}
-      <div className="px-2.5 py-2 border-t border-border">
+      {canCreateTask && <div className="px-2.5 py-2 border-t border-border">
         <Button
           variant="ghost"
           size="sm"
@@ -129,7 +132,7 @@ export function BoardColumnView({
         >
           <Plus className="w-4 h-4" /> Thêm task
         </Button>
-      </div>
+      </div>}
     </div>
   )
 }

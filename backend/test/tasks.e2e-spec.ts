@@ -100,6 +100,21 @@ describe('Projects / Boards / Tasks (e2e)', () => {
 
   afterAll(async () => {
     if (app) {
+      try {
+        const ds = app.get(DataSource);
+        const emails = [ownerEmail, memberEmail, outsiderEmail];
+        await ds.query(
+          'DELETE FROM projects WHERE owner_id IN (SELECT id FROM users WHERE email = ANY($1))',
+          [emails],
+        );
+        await ds.query(
+          'DELETE FROM activity_logs WHERE user_id IN (SELECT id FROM users WHERE email = ANY($1))',
+          [emails],
+        );
+        await ds.query('DELETE FROM users WHERE email = ANY($1)', [emails]);
+      } catch {
+        /* best-effort cleanup */
+      }
       await app.close();
     }
   }, 60000);

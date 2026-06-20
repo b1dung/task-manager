@@ -8,7 +8,10 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '@/common/guards/project-member.guard';
-import { ActivityService, PaginatedActivityLogs } from '@/modules/activity/activity.service';
+import {
+  ActivityService,
+  PaginatedActivityLogs,
+} from '@/modules/activity/activity.service';
 import { QueryActivityDto } from '@/modules/activity/dto/query-activity.dto';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
 
@@ -27,7 +30,10 @@ export class ActivityController {
     @Param('projectId', ParseUUIDPipe) projectId: string,
     @Query() query: QueryActivityDto,
   ): Promise<PaginatedActivityLogs & { success: true }> {
-    const result = await this.activityService.findAllForProject(projectId, query);
+    const result = await this.activityService.findAllForProject(
+      projectId,
+      query,
+    );
     return { success: true, ...result };
   }
 }

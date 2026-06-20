@@ -18,6 +18,9 @@ vi.mock('@/api/client', () => ({
       if (url.includes('/unread-count')) {
         return Promise.resolve({ data: { data: { count: 3 } } })
       }
+      if (url.includes('/me/permissions')) {
+        return Promise.resolve({ data: { data: { permissions: ['create_project'] } } })
+      }
       return Promise.resolve({ data: { data: [] } })
     }),
     post: vi.fn().mockResolvedValue({
@@ -33,6 +36,7 @@ vi.mock('@/stores/useAuthStore', () => ({
     const state = {
       user: { id: 'u1', fullName: 'Dũng Bùi', email: 'test@test.com', avatarUrl: null, role: 'admin' },
       logout: vi.fn(),
+      isAuthenticated: true,
       getState: () => ({ refreshToken: 'tok' }),
     }
     return selector ? selector(state) : state

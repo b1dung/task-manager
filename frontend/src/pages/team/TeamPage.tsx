@@ -2,11 +2,12 @@ import { useState, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, User, Briefcase, Search, Check, Trash2 } from 'lucide-react'
-import { membersApi } from '@/api/members'
+import { membersApi, type ProjectMember } from '@/api/members'
 import { usersApi, type AppUser } from '@/api/users'
-import { Avatar, Button, EmptyState, Modal, Skeleton, Spinner } from '@/components/ui'
+import { Avatar, Button, ConfirmDialog, EmptyState, Modal, Skeleton, Spinner } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useHasPermission } from '@/hooks/usePermissions'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatDate, cn } from '@/lib/utils'
 
@@ -24,6 +25,7 @@ export function TeamPage() {
   const { user } = useAuthStore()
   const [workloadFilter, setWorkloadFilter] = useState('')
   const [showInvite, setShowInvite] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<ProjectMember | null>(null)
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['members', projectId, workloadFilter],
@@ -33,11 +35,16 @@ export function TeamPage() {
     enabled: !!projectId,
   })
 
-  const { mutate: remove } = useMutation({
+  // Member management (invite / remove) is gated by `manage_users` on the backend
+  // (admin & owner) — mirror that here so they always see the controls.
+  const canManageMembers = useHasPermission('manage_users')
+
+  const { mutate: remove, isPending: removing } = useMutation({
     mutationFn: (userId: string) => membersApi.remove(projectId, userId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', projectId] })
       toast.success('Đã xóa thành viên khỏi dự án')
+      setRemoveTarget(null)
     },
     onError: () => toast.error('Không thể xóa thành viên'),
   })
@@ -58,9 +65,11 @@ export function TeamPage() {
           >
             {WORKLOAD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
-          <Button variant="primary" size="sm" onClick={() => setShowInvite(true)}>
-            <UserPlus className="w-4 h-4" /> Mời thành viên
-          </Button>
+          {canManageMembers && (
+            <Button variant="primary" size="sm" onClick={() => setShowInvite(true)}>
+              <UserPlus className="w-4 h-4" /> Mời thành viên
+            </Button>
+          )}
         </div>
       </div>
 
@@ -82,7 +91,7 @@ export function TeamPage() {
           <EmptyState
             icon={<User className="w-12 h-12" />}
             title="Không có thành viên nào"
-            action={<Button variant="primary" size="sm" onClick={() => setShowInvite(true)}><UserPlus className="w-4 h-4" /> Mời ngay</Button>}
+            action={canManageMembers ? <Button variant="primary" size="sm" onClick={() => setShowInvite(true)}><UserPlus className="w-4 h-4" /> Mời ngay</Button> : undefined}
           />
         ) : (
           <div className="rounded-card border border-border overflow-x-auto scrollbar-thin">
@@ -127,11 +136,9 @@ export function TeamPage() {
                     </td>
                     {/* Actions */}
                     <td className="px-4 py-2.5 text-right">
-                      {user?.id !== m.userId && (
+                      {canManageMembers && user?.id !== m.userId && (
                         <button
-                          onClick={() => {
-                            if (window.confirm(`Xóa ${m.user.fullName} khỏi dự án?`)) remove(m.userId)
-                          }}
+                          onClick={() => setRemoveTarget(m)}
                           className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors"
                           title="Xóa khỏi dự án"
                         >
@@ -151,6 +158,16 @@ export function TeamPage() {
         open={showInvite}
         projectId={projectId}
         onClose={() => setShowInvite(false)}
+      />
+
+      <ConfirmDialog
+        open={!!removeTarget}
+        onClose={() => setRemoveTarget(null)}
+        onConfirm={() => removeTarget && remove(removeTarget.userId)}
+        title="Xóa thành viên"
+        message={removeTarget ? <>Xóa <span className="font-medium text-fg">{removeTarget.user.fullName}</span> khỏi dự án? Họ sẽ mất quyền truy cập dự án này.</> : null}
+        confirmLabel="Xóa khỏi dự án"
+        loading={removing}
       />
     </div>
   )
@@ -185,7 +202,8 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
   const toggle = (id: string) => {
     setSelected((prev) => {
       const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
       return next
     })
   }
@@ -211,7 +229,7 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
     let ok = 0
     for (const id of ids) {
       try { await new Promise<void>((res, rej) => addMember(id, { onSuccess: () => res(), onError: rej })); ok++ }
-      catch {}
+      catch { /* continue adding the remaining selected users */ }
     }
     if (ok > 0) toast.success(`Đã thêm ${ok} thành viên`)
     if (ok < ids.length) toast.error(`${ids.length - ok} người không thể thêm`)

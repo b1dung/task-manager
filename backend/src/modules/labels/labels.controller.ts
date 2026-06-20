@@ -12,6 +12,8 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '@/common/guards/project-member.guard';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '@/modules/auth/guards/permissions.guard';
+import { RequirePermissions } from '@/modules/auth/decorators/require-permissions.decorator';
 import { CreateLabelDto } from '@/modules/labels/dto/create-label.dto';
 import { UpdateLabelDto } from '@/modules/labels/dto/update-label.dto';
 import { Label } from '@/modules/labels/entities/label.entity';
@@ -19,7 +21,7 @@ import { LabelsService } from '@/modules/labels/labels.service';
 
 @ApiTags('labels')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, ProjectMemberGuard)
+@UseGuards(JwtAuthGuard, ProjectMemberGuard, PermissionsGuard)
 @Controller('projects/:projectId/labels')
 export class LabelsController {
   constructor(private readonly labelsService: LabelsService) {}
@@ -34,6 +36,7 @@ export class LabelsController {
   }
 
   @Post()
+  @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'Create a label' })
   async create(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -44,6 +47,7 @@ export class LabelsController {
   }
 
   @Patch(':id')
+  @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'Update a label' })
   async update(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -55,6 +59,7 @@ export class LabelsController {
   }
 
   @Delete(':id')
+  @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'Delete a label' })
   async remove(
     @Param('projectId', ParseUUIDPipe) projectId: string,

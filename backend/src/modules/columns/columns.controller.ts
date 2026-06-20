@@ -12,6 +12,8 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '@/common/guards/project-member.guard';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '@/modules/auth/guards/permissions.guard';
+import { RequirePermissions } from '@/modules/auth/decorators/require-permissions.decorator';
 import { ColumnsService } from '@/modules/columns/columns.service';
 import { CreateColumnDto } from '@/modules/columns/dto/create-column.dto';
 import { ReorderColumnsDto } from '@/modules/columns/dto/reorder-columns.dto';
@@ -20,7 +22,7 @@ import { BoardColumn } from '@/modules/columns/entities/column.entity';
 
 @ApiTags('columns')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, ProjectMemberGuard)
+@UseGuards(JwtAuthGuard, ProjectMemberGuard, PermissionsGuard)
 @Controller('projects/:projectId/columns')
 export class ColumnsController {
   constructor(private readonly columnsService: ColumnsService) {}
@@ -35,6 +37,7 @@ export class ColumnsController {
   }
 
   @Post()
+  @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'Create a board column' })
   async create(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -45,6 +48,7 @@ export class ColumnsController {
   }
 
   @Patch('reorder')
+  @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'Reorder board columns' })
   async reorder(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -55,6 +59,7 @@ export class ColumnsController {
   }
 
   @Patch(':id')
+  @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'Update a board column' })
   async update(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -66,6 +71,7 @@ export class ColumnsController {
   }
 
   @Delete(':id')
+  @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'Delete a board column' })
   async remove(
     @Param('projectId', ParseUUIDPipe) projectId: string,

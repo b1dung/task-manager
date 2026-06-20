@@ -10,6 +10,7 @@ import { Comment } from '@/modules/comments/entities/comment.entity';
 import { Notification } from '@/modules/notifications/entities/notification.entity';
 import { Task } from '@/modules/tasks/entities/task.entity';
 import { TaskboardGateway } from '@/modules/websocket/websocket.gateway';
+import { UsersService } from '@/modules/users/users.service';
 
 describe('TaskboardGateway', () => {
   let gateway: TaskboardGateway;
@@ -18,6 +19,9 @@ describe('TaskboardGateway', () => {
   let emit: jest.Mock;
   let to: jest.Mock;
   let server: { to: jest.Mock };
+  let usersService: { findActiveById: jest.Mock };
+  let projectMemberRepository: { findOne: jest.Mock };
+  let taskRepository: { createQueryBuilder: jest.Mock };
 
   const buildSocket = (overrides: Record<string, unknown> = {}) => {
     const join = jest.fn();
@@ -40,16 +44,39 @@ describe('TaskboardGateway', () => {
     emit = jest.fn();
     to = jest.fn().mockReturnValue({ emit });
     server = { to };
+    usersService = {
+      findActiveById: jest.fn((id: string) =>
+        Promise.resolve({
+          id,
+          email: `${id}@example.com`,
+          role: 'member',
+          roleId: null,
+        }),
+      ),
+    };
+    projectMemberRepository = {
+      findOne: jest.fn().mockResolvedValue({ id: 'member-1' }),
+    };
+    taskRepository = {
+      createQueryBuilder: jest.fn().mockReturnValue({
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        getOne: jest.fn().mockResolvedValue({ id: 'task-1' }),
+      }),
+    };
 
     gateway = new TaskboardGateway(
       jwtService as unknown as JwtService,
       configService as unknown as ConfigService,
+      usersService as unknown as UsersService,
+      projectMemberRepository as never,
+      taskRepository as never,
     );
     gateway.server = server as never;
   });
 
   describe('handleConnection', () => {
-    it('authenticates via handshake.auth.token and joins the personal room', () => {
+    it('authenticates via handshake.auth.token and joins the personal room', async () => {
       const socket = buildSocket({
         handshake: { auth: { token: 'token-1' }, headers: {}, query: {} },
       });
@@ -58,20 +85,17 @@ describe('TaskboardGateway', () => {
         email: 'user@example.com',
       });
 
-      gateway.handleConnection(socket as never);
+      await gateway.handleConnection(socket as never);
 
       expect(jwtService.verify).toHaveBeenCalledWith('token-1', {
         secret: 'dev_access_secret',
       });
-      expect(socket.data.user).toEqual({
-        sub: 'user-1',
-        email: 'user@example.com',
-      });
+      expect(socket.data.user?.sub).toBe('user-1');
       expect(socket.join).toHaveBeenCalledWith('user:user-1');
       expect(socket.disconnect).not.toHaveBeenCalled();
     });
 
-    it('authenticates via the Authorization header when no auth.token is present', () => {
+    it('authenticates via the Authorization header when no auth.token is present', async () => {
       const socket = buildSocket({
         handshake: {
           auth: {},
@@ -81,7 +105,7 @@ describe('TaskboardGateway', () => {
       });
       jwtService.verify.mockReturnValue({ sub: 'user-2' });
 
-      gateway.handleConnection(socket as never);
+      await gateway.handleConnection(socket as never);
 
       expect(jwtService.verify).toHaveBeenCalledWith('token-2', {
         secret: 'dev_access_secret',
@@ -89,13 +113,13 @@ describe('TaskboardGateway', () => {
       expect(socket.join).toHaveBeenCalledWith('user:user-2');
     });
 
-    it('authenticates via the query token as a last resort', () => {
+    it('authenticates via the query token as a last resort', async () => {
       const socket = buildSocket({
         handshake: { auth: {}, headers: {}, query: { token: 'token-3' } },
       });
       jwtService.verify.mockReturnValue({ sub: 'user-3' });
 
-      gateway.handleConnection(socket as never);
+      await gateway.handleConnection(socket as never);
 
       expect(jwtService.verify).toHaveBeenCalledWith('token-3', {
         secret: 'dev_access_secret',
@@ -103,16 +127,16 @@ describe('TaskboardGateway', () => {
       expect(socket.join).toHaveBeenCalledWith('user:user-3');
     });
 
-    it('disconnects the socket when no token is provided', () => {
+    it('disconnects the socket when no token is provided', async () => {
       const socket = buildSocket();
 
-      gateway.handleConnection(socket as never);
+      await gateway.handleConnection(socket as never);
 
       expect(jwtService.verify).not.toHaveBeenCalled();
       expect(socket.disconnect).toHaveBeenCalledWith(true);
     });
 
-    it('disconnects the socket when the token is invalid', () => {
+    it('disconnects the socket when the token is invalid', async () => {
       const socket = buildSocket({
         handshake: { auth: { token: 'bad-token' }, headers: {}, query: {} },
       });
@@ -120,7 +144,7 @@ describe('TaskboardGateway', () => {
         throw new Error('invalid token');
       });
 
-      gateway.handleConnection(socket as never);
+      await gateway.handleConnection(socket as never);
 
       expect(socket.disconnect).toHaveBeenCalledWith(true);
       expect(socket.join).not.toHaveBeenCalled();
@@ -139,20 +163,22 @@ describe('TaskboardGateway', () => {
   });
 
   describe('room join/leave handlers', () => {
-    it('joins and leaves a project room', () => {
-      const socket = buildSocket();
+    it('joins and leaves a project room', async () => {
+      const socket = buildSocket({ data: { user: { sub: 'user-1' } } });
 
-      gateway.handleJoinProject(socket as never, { projectId: 'project-1' });
+      await gateway.handleJoinProject(socket as never, {
+        projectId: 'project-1',
+      });
       gateway.handleLeaveProject(socket as never, { projectId: 'project-1' });
 
       expect(socket.join).toHaveBeenCalledWith('project:project-1');
       expect(socket.leave).toHaveBeenCalledWith('project:project-1');
     });
 
-    it('joins and leaves a task room', () => {
-      const socket = buildSocket();
+    it('joins and leaves a task room', async () => {
+      const socket = buildSocket({ data: { user: { sub: 'user-1' } } });
 
-      gateway.handleJoinTask(socket as never, { taskId: 'task-1' });
+      await gateway.handleJoinTask(socket as never, { taskId: 'task-1' });
       gateway.handleLeaveTask(socket as never, { taskId: 'task-1' });
 
       expect(socket.join).toHaveBeenCalledWith('task:task-1');

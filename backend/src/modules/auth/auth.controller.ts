@@ -28,6 +28,7 @@ import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
 import { GoogleProfile } from '@/modules/auth/strategies/google.strategy';
 import { JwtRefreshPayload } from '@/modules/auth/strategies/jwt-refresh.strategy';
 import { User } from '@/modules/users/entities/user.entity';
+import { RateLimitGuard } from '@/modules/auth/guards/rate-limit.guard';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -38,14 +39,19 @@ export class AuthController {
   ) {}
 
   @Post('register')
+  @UseGuards(RateLimitGuard)
   @ApiOperation({
     summary:
       'Register a new account. With an invite token the account is activated immediately; otherwise it is created pending admin approval (no tokens returned).',
   })
   @ApiResponse({ status: 201, description: 'Account created' })
-  async register(@Body() dto: RegisterDto) {
+  async register(
+    @Body() dto: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const result = await this.authService.register(dto);
     if (result.status === 'active') {
+      this.setRefreshCookie(res, result.tokens.refreshToken);
       return {
         success: true,
         data: {
@@ -62,12 +68,14 @@ export class AuthController {
   }
 
   @UseGuards(LocalAuthGuard)
+  @UseGuards(RateLimitGuard)
   @Post('login')
   @ApiOperation({ summary: 'Login with email & password' })
   @ApiResponse({ status: 200, description: 'Authenticated with tokens' })
-  async login(@Req() req: Request) {
+  async login(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as User;
     const { tokens } = await this.authService.login(user);
+    this.setRefreshCookie(res, tokens.refreshToken);
     return {
       success: true,
       data: { user: this.toPublicUser(user), ...tokens },
@@ -78,12 +86,16 @@ export class AuthController {
   @Post('refresh')
   @ApiOperation({ summary: 'Rotate access & refresh tokens' })
   @ApiBody({ type: RefreshTokenDto })
-  async refresh(@Req() req: Request) {
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
     const payload = req.user as JwtRefreshPayload;
     const tokens = await this.authService.refresh(
       payload,
       payload.refreshToken,
     );
+    this.setRefreshCookie(res, tokens.refreshToken);
     return { success: true, data: tokens };
   }
 
@@ -91,8 +103,15 @@ export class AuthController {
   @ApiBearerAuth()
   @Post('logout')
   @ApiOperation({ summary: 'Revoke a refresh token' })
-  async logout(@CurrentUser() user: JwtPayload, @Body() dto: RefreshTokenDto) {
-    await this.authService.logout(user.sub, dto.refreshToken);
+  async logout(
+    @CurrentUser() user: JwtPayload,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+    @Body() dto: Partial<RefreshTokenDto>,
+  ) {
+    const token = dto.refreshToken ?? this.readRefreshCookie(req);
+    if (token) await this.authService.logout(user.sub, token);
+    res.clearCookie('refresh_token', { path: '/api/v1/auth' });
     return { success: true, data: null };
   }
 
@@ -132,9 +151,30 @@ export class AuthController {
       res.redirect(`${frontendUrl}/login?pending=1`);
       return;
     }
+    this.setRefreshCookie(res, tokens.refreshToken);
     res.redirect(
-      `${frontendUrl}/auth/callback?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}`,
+      `${frontendUrl}/auth/callback#accessToken=${encodeURIComponent(tokens.accessToken)}`,
     );
+  }
+
+  private setRefreshCookie(res: Response, token: string): void {
+    res.cookie('refresh_token', token, {
+      httpOnly: true,
+      secure: this.configService.get('NODE_ENV') === 'production',
+      sameSite: 'lax',
+      path: '/api/v1/auth',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  }
+
+  private readRefreshCookie(req: Request): string | undefined {
+    const cookie = req.headers.cookie
+      ?.split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith('refresh_token='));
+    return cookie
+      ? decodeURIComponent(cookie.slice('refresh_token='.length))
+      : undefined;
   }
 
   private toPublicUser(user: User): Omit<User, 'passwordHash'> {

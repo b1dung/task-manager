@@ -7,7 +7,10 @@ function toArray<T>(value: unknown): T[] | undefined {
   if (value === undefined || value === null) return undefined;
   if (Array.isArray(value)) return value as T[];
   if (typeof value === 'string') {
-    const parts = value.split(',').map((s) => s.trim()).filter(Boolean);
+    const parts = value
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
     return parts.length ? (parts as T[]) : undefined;
   }
   return [value as T];

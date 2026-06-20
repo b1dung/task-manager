@@ -5,10 +5,11 @@ import { RequestContextInterceptor } from '@/common/context/request-context.inte
 import { RequestContextService } from '@/common/context/request-context.service';
 import { ProjectMemberGuard } from '@/common/guards/project-member.guard';
 import { ProjectMember } from '@/modules/members/entities/project-member.entity';
+import { RolesModule } from '@/modules/roles/roles.module';
 
 @Global()
 @Module({
-  imports: [TypeOrmModule.forFeature([ProjectMember])],
+  imports: [TypeOrmModule.forFeature([ProjectMember]), RolesModule],
   providers: [
     ProjectMemberGuard,
     RequestContextService,

@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import {
-  LayoutGrid, LayoutDashboard, Calendar, Users, BarChart2, Gauge, Paperclip, Bell, Activity, ShieldCheck, UserCog,
+  LayoutGrid, LayoutDashboard, Calendar, Users, BarChart2, Gauge, Paperclip, Bell, Activity, ShieldCheck, UserCog, FolderCog, Archive,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   Plus, Check, Folder, LogOut, type LucideIcon,
 } from 'lucide-react'
@@ -43,6 +43,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
       { to: 'tasks', icon: LayoutGrid, label: 'Board' },
       { to: 'calendar', icon: Calendar, label: 'Calendar' },
       { to: 'attachments', icon: Paperclip, label: 'Attachments' },
+      { to: 'archived', icon: Archive, label: 'Archived', requiresProject: true, requiresPermission: 'approve_task' },
     ],
   },
   {
@@ -63,6 +64,7 @@ const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
   {
     title: 'Administration',
     items: [
+      { to: 'manage-projects', icon: FolderCog, label: 'Project Management', absolutePath: '/manage-projects', requiresPermission: 'delete_project' },
       { to: 'users', icon: UserCog, label: 'User Management', absolutePath: '/users', requiresPermission: 'manage_users' },
       { to: 'roles', icon: ShieldCheck, label: 'Roles & Permissions', absolutePath: '/roles', requiresPermission: 'manage_roles' },
     ],
@@ -375,7 +377,7 @@ export function Sidebar() {
   const unread = unreadData?.count ?? 0
 
   const handleLogout = async () => {
-    try { await authApi.logout(useAuthStore.getState().refreshToken!) } catch {}
+    try { await authApi.logout() } catch { /* local logout still proceeds */ }
     logout()
     navigate('/login')
   }

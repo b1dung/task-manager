@@ -2,7 +2,7 @@ import {useState, useRef, useEffect} from 'react'
 import {createPortal} from 'react-dom'
 import {useSortable} from '@dnd-kit/sortable'
 import {CSS} from '@dnd-kit/utilities'
-import {Calendar, ChevronRight, ChevronDown, Check, Link2} from 'lucide-react'
+import {Calendar, ChevronRight, ChevronDown, Check} from 'lucide-react'
 import {useMutation, useQuery, useQueryClient} from '@tanstack/react-query'
 import type {Task, SubtaskPreview} from '@/api/tasks'
 import {tasksApi} from '@/api/tasks'
@@ -11,7 +11,7 @@ import {Avatar} from '@/components/ui'
 import { TaskIcon, SubtaskIcon } from '@/components/ui/TaskIcons'
 import {useToast} from '@/hooks/useToast'
 import {useTaskStore} from '@/stores/useTaskStore'
-import {cn, formatDate} from '@/lib/utils'
+import {cn} from '@/lib/utils'
 
 // ─── Priority icon ────────────────────────────────────────────────────────────
 

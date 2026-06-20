@@ -58,11 +58,17 @@ export class AddFilterIndexes1780800000000 implements MigrationInterface {
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_type"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_due_date"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_sprint_id"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_column_id_position"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_tasks_column_id_position"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_tasks_project_created"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_activity_logs_project_created"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_activity_logs_project_created"`,
+    );
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_activity_logs_user_id"`);
     await queryRunner.query(`DROP INDEX IF EXISTS "IDX_activity_logs_entity"`);
-    await queryRunner.query(`DROP INDEX IF EXISTS "IDX_notifications_recipient_read"`);
+    await queryRunner.query(
+      `DROP INDEX IF EXISTS "IDX_notifications_recipient_read"`,
+    );
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useMemo, useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, Shield, User, Mail, Lock, Search, Pencil, Link2, Copy, Check, Trash2, Clock } from 'lucide-react'
@@ -7,6 +8,7 @@ import { invitesApi, type Invite } from '@/api/invites'
 import { Avatar, Button, EmptyState, Modal, Skeleton, Spinner } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { useHasPermission } from '@/hooks/usePermissions'
+import { useAuthStore } from '@/stores/useAuthStore'
 import { useDebounce } from '@/hooks/useDebounce'
 import { formatDate, cn } from '@/lib/utils'
 
@@ -26,11 +28,13 @@ export function UserManagementPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const canManage = useHasPermission('manage_users')
+  const currentUserId = useAuthStore((s) => s.user?.id)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
   const [showCreate, setShowCreate] = useState(false)
   const [showInvite, setShowInvite] = useState(false)
   const [editId, setEditId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<AppUser | null>(null)
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users', debouncedSearch],
@@ -47,6 +51,17 @@ export function UserManagementPage() {
     [roles],
   )
 
+  // Only an owner can manage (edit role/status/delete) another owner — mirror the
+  // backend guard so admins don't see actions that would just 403.
+  const { data: myPerms } = useQuery({
+    queryKey: ['me', 'permissions'],
+    queryFn: rolesApi.myPermissions,
+    staleTime: 5 * 60_000,
+  })
+  const iAmOwner = myPerms?.roleKey === 'owner'
+  const isOwnerUser = (u: AppUser) => !!u.roleId && roleById.get(u.roleId)?.key === 'owner'
+  const canActOn = (u: AppUser) => iAmOwner || !isOwnerUser(u)
+
   const { mutate: patchUser } = useMutation({
     mutationFn: ({ id, ...dto }: { id: string; roleId?: string | null; isActive?: boolean }) =>
       usersApi.update(id, dto),
@@ -55,6 +70,16 @@ export function UserManagementPage() {
       qc.invalidateQueries({ queryKey: ['me', 'permissions'] })
     },
     onError: (err) => toast.error(apiErrorMessage(err, 'Cập nhật thất bại')),
+  })
+
+  const { mutate: deleteUser, isPending: deleting } = useMutation({
+    mutationFn: (id: string) => usersApi.remove(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['users'] })
+      toast.success('Đã xóa người dùng')
+      setDeleteTarget(null)
+    },
+    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể xóa người dùng')),
   })
 
   return (
@@ -125,7 +150,7 @@ export function UserManagementPage() {
                     </td>
                     <td className="px-4 py-2.5 text-fg-muted">{u.email}</td>
                     <td className="px-4 py-2.5">
-                      {canManage ? (
+                      {canManage && canActOn(u) ? (
                         <select
                           value={u.roleId ?? ''}
                           onChange={(e) => patchUser({ id: u.id, roleId: e.target.value || null })}
@@ -143,7 +168,7 @@ export function UserManagementPage() {
                       )}
                     </td>
                     <td className="px-4 py-2.5">
-                      {canManage ? (
+                      {canManage && canActOn(u) ? (
                         u.isActive ? (
                           <button
                             type="button"
@@ -175,13 +200,26 @@ export function UserManagementPage() {
                     <td className="px-4 py-2.5 text-fg-subtle text-xs whitespace-nowrap">{formatDate(u.createdAt)}</td>
                     {canManage && (
                       <td className="px-4 py-2.5 text-right">
-                        <button
-                          onClick={() => setEditId(u.id)}
-                          className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors"
-                          title="Chỉnh sửa"
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="inline-flex items-center gap-1">
+                          {canActOn(u) && (
+                            <button
+                              onClick={() => setEditId(u.id)}
+                              className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors"
+                              title="Chỉnh sửa"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                          {u.id !== currentUserId && canActOn(u) && (
+                            <button
+                              onClick={() => setDeleteTarget(u)}
+                              className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                              title="Xóa người dùng"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </td>
                     )}
                   </tr>
@@ -197,6 +235,34 @@ export function UserManagementPage() {
           <CreateUserModal open={showCreate} roles={roles} onClose={() => setShowCreate(false)} />
           <EditUserModal open={!!editId} userId={editId} roles={roles} onClose={() => setEditId(null)} />
           <InviteModal open={showInvite} roles={roles} onClose={() => setShowInvite(false)} />
+          <Modal open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} title="Xóa người dùng" size="sm">
+            {deleteTarget && (
+              <>
+                <div className="px-5 py-4 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar name={deleteTarget.fullName} avatarUrl={deleteTarget.avatarUrl} size="md" />
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-fg truncate">{deleteTarget.fullName}</p>
+                      <p className="text-xs text-fg-muted truncate">{deleteTarget.email}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2.5 text-sm">
+                    <Trash2 className="w-4 h-4 text-danger mt-0.5 shrink-0" />
+                    <span className="text-fg-muted">
+                      Hành động này <span className="font-medium text-fg">không thể hoàn tác</span>.
+                      Các dự án do người dùng này <span className="font-medium text-fg">sở hữu</span> cùng toàn bộ task, cột, sprint trong đó sẽ bị xóa vĩnh viễn.
+                    </span>
+                  </div>
+                </div>
+                <div className="px-5 py-4 border-t border-border flex justify-end gap-3">
+                  <Button variant="ghost" size="sm" disabled={deleting} onClick={() => setDeleteTarget(null)}>Hủy</Button>
+                  <Button variant="danger" size="sm" loading={deleting} onClick={() => deleteUser(deleteTarget.id)}>
+                    Xóa vĩnh viễn
+                  </Button>
+                </div>
+              </>
+            )}
+          </Modal>
         </>
       )}
     </div>

@@ -7,6 +7,7 @@ import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ActivityModule } from '@/modules/activity/activity.module';
+import { ArchivedModule } from '@/modules/archived/archived.module';
 import { AttachmentsModule } from '@/modules/attachments/attachments.module';
 import { AuthModule } from '@/modules/auth/auth.module';
 import { ColumnsModule } from '@/modules/columns/columns.module';
@@ -56,8 +57,8 @@ import { WebsocketModule } from '@/modules/websocket/websocket.module';
       }),
     }),
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'uploads'),
-      serveRoot: '/uploads',
+      rootPath: join(__dirname, '..', 'uploads', 'avatars'),
+      serveRoot: '/uploads/avatars',
     }),
     UsersModule,
     AuthModule,
@@ -75,6 +76,7 @@ import { WebsocketModule } from '@/modules/websocket/websocket.module';
     NotificationsModule,
     ExportModule,
     InvitesModule,
+    ArchivedModule,
     WebsocketModule,
   ],
   controllers: [AppController],

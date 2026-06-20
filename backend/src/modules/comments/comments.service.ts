@@ -103,32 +103,34 @@ export class CommentsService {
     const result = await this.findOneOrFail(taskId, saved.id);
     this.gateway.emitCommentAdded(taskId, result);
 
-    const notifiedUserIds = new Set<string>([authorId]);
-    for (const userId of mentionedUserIds) {
-      if (notifiedUserIds.has(userId)) {
-        continue;
-      }
-      notifiedUserIds.add(userId);
-      await this.notificationsService.create({
-        recipientId: userId,
+    // @mentions are personal — notify the mentioned users (+ owners), not the
+    // whole project management.
+    const mentioned = mentionedUserIds.filter((id) => id !== authorId);
+    if (mentioned.length > 0) {
+      await this.notificationsService.notifyTaskEvent({
+        projectId,
         actorId: authorId,
         type: NotificationType.MENTION,
         entityType: 'comment',
         entityId: saved.id,
-        message: `You were mentioned in a comment on "${task.title}"`,
+        message: `mentioned you in a comment on "${task.title}"`,
+        directRecipientIds: mentioned,
+        includeProjectManagers: false,
       });
     }
 
-    if (task.assigneeId && !notifiedUserIds.has(task.assigneeId)) {
-      await this.notificationsService.create({
-        recipientId: task.assigneeId,
-        actorId: authorId,
-        type: NotificationType.COMMENT_ADDED,
-        entityType: 'comment',
-        entityId: saved.id,
-        message: `New comment on "${task.title}"`,
-      });
-    }
+    // The comment itself fans out to the task's people + project managers +
+    // owners, skipping anyone already pinged by a @mention above.
+    await this.notificationsService.notifyTaskEvent({
+      projectId,
+      actorId: authorId,
+      type: NotificationType.COMMENT_ADDED,
+      entityType: 'comment',
+      entityId: saved.id,
+      message: `commented on "${task.title}"`,
+      directRecipientIds: [task.assigneeId, task.reporterId],
+      excludeRecipientIds: mentioned,
+    });
 
     return result;
   }

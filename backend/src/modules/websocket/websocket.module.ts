@@ -2,9 +2,15 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { TaskboardGateway } from '@/modules/websocket/websocket.gateway';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ProjectMember } from '@/modules/members/entities/project-member.entity';
+import { Task } from '@/modules/tasks/entities/task.entity';
+import { UsersModule } from '@/modules/users/users.module';
 
 @Module({
   imports: [
+    TypeOrmModule.forFeature([ProjectMember, Task]),
+    UsersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

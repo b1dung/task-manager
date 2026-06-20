@@ -7,6 +7,7 @@ import { ExportService } from '@/modules/export/export.service';
 import { NotificationsModule } from '@/modules/notifications/notifications.module';
 import { ReportsModule } from '@/modules/reports/reports.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
+import { RolesModule } from '@/modules/roles/roles.module';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { TasksModule } from '@/modules/tasks/tasks.module';
     TasksModule,
     ReportsModule,
     NotificationsModule,
+    RolesModule,
   ],
   controllers: [ExportController],
   providers: [ExportService, ExportProcessor],

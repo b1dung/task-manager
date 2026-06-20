@@ -12,15 +12,19 @@ import {
   PencilLine,
   CalendarClock,
   Download,
+  FilePlus2,
+  Timer,
 } from 'lucide-react'
 import { notificationsApi, notificationLink, type Notification } from '@/api/notifications'
 import { Avatar, Button, Skeleton } from '@/components/ui'
 import { formatRelative, cn } from '@/lib/utils'
 
 const TYPE_ICON: Record<string, ReactNode> = {
+  task_created: <FilePlus2 className="w-3.5 h-3.5" />,
   task_assigned: <UserPlus className="w-3.5 h-3.5" />,
   task_updated: <PencilLine className="w-3.5 h-3.5" />,
   task_moved: <MoveRight className="w-3.5 h-3.5" />,
+  time_logged: <Timer className="w-3.5 h-3.5" />,
   comment_added: <MessageSquare className="w-3.5 h-3.5" />,
   mention: <AtSign className="w-3.5 h-3.5" />,
   due_date_reminder: <CalendarClock className="w-3.5 h-3.5" />,
@@ -142,7 +146,10 @@ export function NotificationsDropdown() {
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-fg line-clamp-2">{n.message}</p>
+                        <p className="text-sm text-fg line-clamp-2">
+                          {n.actor && <span className="font-medium">{n.actor.fullName} </span>}
+                          {n.message}
+                        </p>
                         {n.context?.taskId && (
                           <p className="text-xs text-fg-subtle mt-0.5 truncate">
                             {n.context.projectName && <span>{n.context.projectName} · </span>}

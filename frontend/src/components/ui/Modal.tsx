@@ -42,8 +42,9 @@ export function Modal({ open, onClose, title, children, size = 'md', className }
       />
       <div
         className={cn(
-          'relative w-full rounded-xl w-[500px] min-w[500px] border border-border bg-bg-surface shadow-app-lg',
+          'relative w-full rounded-xl border border-border bg-bg-surface shadow-app-lg',
           'flex flex-col max-h-[90vh]',
+          sizeCls[size],
           className,
         )}
       >

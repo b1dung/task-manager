@@ -98,7 +98,12 @@ export class AttachmentsService {
     uploaderId: string,
     file: Express.Multer.File,
   ): Promise<Attachment> {
-    await this.assertTaskInProject(projectId, taskId);
+    try {
+      await this.assertTaskInProject(projectId, taskId);
+    } catch (error) {
+      await unlink(file.path).catch(() => undefined);
+      throw error;
+    }
 
     const attachment = this.attachmentRepository.create({
       taskId,
@@ -109,6 +114,45 @@ export class AttachmentsService {
       mimeType: file.mimetype,
     });
     return this.attachmentRepository.save(attachment);
+  }
+
+  async getDownload(
+    projectId: string,
+    taskId: string,
+    id: string,
+  ): Promise<{ attachment: Attachment; path: string }> {
+    await this.assertTaskInProject(projectId, taskId);
+    const attachment = await this.findOneOrFail(taskId, id);
+    return {
+      attachment,
+      path: join(process.cwd(), attachment.fileUrl.replace(/^\//, '')),
+    };
+  }
+
+  /**
+   * Resolve an attachment by its stored filename, scoped to a project. Used to
+   * stream inline description images to an authenticated, member-only request.
+   * The path is taken from the DB record (never from user input), and the
+   * attachment must belong to a task in the given project.
+   */
+  async getProjectFileByName(
+    projectId: string,
+    filename: string,
+  ): Promise<{ attachment: Attachment; path: string }> {
+    if (!/^[A-Za-z0-9._-]+$/.test(filename)) {
+      throw new NotFoundException('Attachment not found');
+    }
+    const attachment = await this.attachmentRepository.findOne({
+      where: { fileUrl: `/uploads/attachments/${filename}` },
+    });
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+    await this.assertTaskInProject(projectId, attachment.taskId);
+    return {
+      attachment,
+      path: join(process.cwd(), attachment.fileUrl.replace(/^\//, '')),
+    };
   }
 
   async remove(

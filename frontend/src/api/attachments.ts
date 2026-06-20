@@ -50,4 +50,21 @@ export const attachmentsApi = {
 
   remove: (projectId: string, taskId: string, id: string) =>
     apiClient.delete(`/projects/${projectId}/tasks/${taskId}/attachments/${id}`),
+
+  download: (projectId: string, taskId: string, id: string) =>
+    apiClient.get<Blob>(`/projects/${projectId}/tasks/${taskId}/attachments/${id}/download`, {
+      responseType: 'blob',
+    }).then(r => r.data),
+
+  /** Stream an attachment file by name (member-only) — for inline description images. */
+  rawByName: (projectId: string, filename: string) =>
+    apiClient.get<Blob>(`/projects/${projectId}/attachments/file/${encodeURIComponent(filename)}`, {
+      responseType: 'blob',
+    }).then(r => r.data),
+}
+
+/** Extract the stored filename from an attachment fileUrl (`/uploads/attachments/<name>`). */
+export function attachmentFilename(src: string): string | null {
+  const m = /\/uploads\/attachments\/([^/?#]+)$/.exec(src)
+  return m ? decodeURIComponent(m[1]) : null
 }

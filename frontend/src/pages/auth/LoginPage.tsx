@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -6,7 +7,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Clock } from 'lucide-react'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/useAuthStore'
-import { Button, Input } from '@/components/ui'
+import { Button, Input, Modal } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 
 const schema = z.object({
@@ -15,10 +16,8 @@ const schema = z.object({
 })
 type FormData = z.infer<typeof schema>
 
-function loginErrorMessage(err: unknown): string {
-  const status = (err as { response?: { status?: number } })?.response?.status
-  if (status === 403) return 'Tài khoản đang chờ quản trị viên duyệt'
-  return 'Email hoặc mật khẩu không đúng'
+function errorStatus(err: unknown): number | undefined {
+  return (err as { response?: { status?: number } })?.response?.status
 }
 
 export function LoginPage() {
@@ -26,7 +25,7 @@ export function LoginPage() {
   const { setAuth } = useAuthStore()
   const toast = useToast()
   const [searchParams] = useSearchParams()
-  const pending = searchParams.get('pending') === '1'
+  const [showPending, setShowPending] = useState(searchParams.get('pending') === '1')
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -38,7 +37,11 @@ export function LoginPage() {
       setAuth(user, accessToken, refreshToken)
       navigate('/projects')
     },
-    onError: (err) => toast.error(loginErrorMessage(err)),
+    onError: (err) => {
+      // Account exists but is not yet approved → show a blocking notice.
+      if (errorStatus(err) === 403) setShowPending(true)
+      else toast.error('Email hoặc mật khẩu không đúng')
+    },
   })
 
   return (
@@ -51,15 +54,6 @@ export function LoginPage() {
           <h1 className="text-2xl font-semibold text-fg">Đăng nhập</h1>
           <p className="mt-1 text-sm text-fg-muted">Chào mừng trở lại!</p>
         </div>
-
-        {pending && (
-          <div className="flex items-start gap-2 rounded-lg border border-accent/30 bg-accent/5 px-3 py-2.5 text-sm">
-            <Clock className="w-4 h-4 text-accent mt-0.5 shrink-0" />
-            <span className="text-fg-muted">
-              Tài khoản của bạn đang chờ quản trị viên duyệt &amp; phân quyền. Vui lòng quay lại sau khi được chấp nhận.
-            </span>
-          </div>
-        )}
 
         <form onSubmit={handleSubmit((d) => mutate(d))} className="space-y-4">
           <Input
@@ -90,6 +84,23 @@ export function LoginPage() {
           </Link>
         </p>
       </div>
+
+      <Modal open={showPending} onClose={() => setShowPending(false)} title="Tài khoản đang chờ duyệt" size="sm">
+        <div className="px-5 py-5 flex flex-col items-center text-center gap-3">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/15 text-warning">
+            <Clock className="w-6 h-6" />
+          </div>
+          <p className="text-sm text-fg">
+            Tài khoản của bạn đã được tạo nhưng <span className="font-medium">đang chờ quản trị viên duyệt &amp; phân quyền</span>.
+          </p>
+          <p className="text-xs text-fg-muted">
+            Bạn sẽ đăng nhập được ngay sau khi được chấp nhận. Vui lòng liên hệ quản trị viên nếu cần gấp.
+          </p>
+        </div>
+        <div className="px-5 py-4 border-t border-border flex justify-center">
+          <Button variant="primary" size="sm" onClick={() => setShowPending(false)}>Đã hiểu</Button>
+        </div>
+      </Modal>
     </div>
   )
 }

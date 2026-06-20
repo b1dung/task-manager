@@ -9,7 +9,9 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { applyTheme } from '@/lib/themes'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
+import { OAuthCallbackPage } from '@/pages/auth/OAuthCallbackPage'
 import { ProjectsPage } from '@/pages/projects/ProjectsPage'
+import { ManageProjectsPage } from '@/pages/projects/ManageProjectsPage'
 import { BoardPage } from '@/pages/board/BoardPage'
 import { SummaryPage } from '@/pages/summary/SummaryPage'
 import { CalendarPage } from '@/pages/calendar/CalendarPage'
@@ -21,6 +23,7 @@ import { DeveloperReportPage } from '@/pages/reports/DeveloperReportPage'
 import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
 import { ActivityPage } from '@/pages/activity/ActivityPage'
 import { AttachmentsPage } from '@/pages/attachments/AttachmentsPage'
+import { ArchivedPage } from '@/pages/archived/ArchivedPage'
 import { AccountPage } from '@/pages/account/AccountPage'
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -57,6 +60,7 @@ export default function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/callback" element={<OAuthCallbackPage />} />
 
         <Route
           element={
@@ -70,9 +74,10 @@ export default function App() {
           <Route path="/projects/:projectId/summary" element={<SummaryPage />} />
           <Route path="/projects/:projectId/calendar" element={<CalendarPage />} />
           <Route path="/projects/:projectId/team" element={<TeamPage />} />
-          <Route path="/projects/:projectId/reports" element={<ReportsPage />} />
-          <Route path="/projects/:projectId/developer-report" element={<DeveloperReportPage />} />
+          <Route path="/projects/:projectId/reports" element={<RequirePermission permission="view_reports"><ReportsPage /></RequirePermission>} />
+          <Route path="/projects/:projectId/developer-report" element={<RequirePermission permission="view_reports"><DeveloperReportPage /></RequirePermission>} />
           <Route path="/projects/:projectId/attachments" element={<AttachmentsPage />} />
+          <Route path="/projects/:projectId/archived" element={<RequirePermission permission="approve_task"><ArchivedPage /></RequirePermission>} />
           <Route path="/projects/:projectId/notifications" element={<NotificationsPage />} />
           <Route path="/projects/:projectId/activity" element={<ActivityPage />} />
           <Route
@@ -88,6 +93,14 @@ export default function App() {
             element={
               <RequirePermission permission="manage_users">
                 <UserManagementPage />
+              </RequirePermission>
+            }
+          />
+          <Route
+            path="/manage-projects"
+            element={
+              <RequirePermission permission="delete_project">
+                <ManageProjectsPage />
               </RequirePermission>
             }
           />

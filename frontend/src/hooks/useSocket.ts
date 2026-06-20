@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { useAuthStore } from '@/stores/useAuthStore'
 
@@ -6,7 +6,7 @@ let globalSocket: Socket | null = null
 
 export function useSocket(projectId?: string) {
   const accessToken = useAuthStore((s) => s.accessToken)
-  const socketRef = useRef<Socket | null>(null)
+  const [socket, setSocket] = useState<Socket | null>(globalSocket)
 
   useEffect(() => {
     if (!accessToken) return
@@ -17,18 +17,18 @@ export function useSocket(projectId?: string) {
         transports: ['websocket'],
       })
     }
-    socketRef.current = globalSocket
+    setSocket(globalSocket)
 
     if (projectId) {
-      globalSocket.emit('join:project', projectId)
+      globalSocket.emit('project:join', { projectId })
     }
 
     return () => {
       if (projectId && globalSocket) {
-        globalSocket.emit('leave:project', projectId)
+        globalSocket.emit('project:leave', { projectId })
       }
     }
   }, [accessToken, projectId])
 
-  return socketRef.current
+  return socket
 }

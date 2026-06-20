@@ -10,7 +10,7 @@ export function Topbar() {
   const navigate = useNavigate()
 
   const handleLogout = async () => {
-    try { await authApi.logout(useAuthStore.getState().refreshToken!) } catch {}
+    try { await authApi.logout() } catch { /* local logout still proceeds */ }
     logout()
     navigate('/login')
   }

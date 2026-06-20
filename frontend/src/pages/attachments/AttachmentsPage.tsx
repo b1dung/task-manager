@@ -103,8 +103,7 @@ export function AttachmentsPage() {
 
   const download = async (a: ProjectAttachment) => {
     try {
-      const res = await fetch(a.fileUrl)
-      const blob = await res.blob()
+      const blob = await attachmentsApi.download(projectId, a.taskId, a.id)
       const url = URL.createObjectURL(blob)
       const el = document.createElement('a')
       el.href = url; el.download = a.fileName.normalize('NFC'); el.click()
@@ -174,7 +173,6 @@ export function AttachmentsPage() {
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filtered.map((a) => {
-              const isImage = a.mimeType.startsWith('image/')
               const canDelete = a.uploaderId === currentUserId
               return (
                 <div
@@ -182,22 +180,17 @@ export function AttachmentsPage() {
                   className="group flex flex-col rounded-card border border-border bg-bg-elevated overflow-hidden transition-colors hover:border-accent/50"
                 >
                   {/* Preview */}
-                  <a
-                    href={a.fileUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => download(a)}
                     className="relative flex items-center justify-center h-32 bg-bg-subtle overflow-hidden"
                     title="Mở file"
                   >
-                    {isImage ? (
-                      <img src={a.fileUrl} alt={a.fileName} className="w-full h-full object-cover" loading="lazy" />
-                    ) : (
-                      <span className="text-fg-subtle"><FileTypeIcon mime={a.mimeType} /></span>
-                    )}
+                    <span className="text-fg-subtle"><FileTypeIcon mime={a.mimeType} /></span>
                     <span className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded bg-black/50 p-1 text-white">
                       <ExternalLink className="w-3 h-3" />
                     </span>
-                  </a>
+                  </button>
 
                   {/* Body */}
                   <div className="flex flex-col gap-1.5 p-3 flex-1">

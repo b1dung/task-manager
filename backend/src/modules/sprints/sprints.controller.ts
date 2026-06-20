@@ -12,6 +12,8 @@ import {
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { ProjectMemberGuard } from '@/common/guards/project-member.guard';
 import { JwtAuthGuard } from '@/modules/auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '@/modules/auth/guards/permissions.guard';
+import { RequirePermissions } from '@/modules/auth/decorators/require-permissions.decorator';
 import { CreateSprintDto } from '@/modules/sprints/dto/create-sprint.dto';
 import { UpdateSprintDto } from '@/modules/sprints/dto/update-sprint.dto';
 import { Sprint } from '@/modules/sprints/entities/sprint.entity';
@@ -19,7 +21,7 @@ import { SprintsService } from '@/modules/sprints/sprints.service';
 
 @ApiTags('sprints')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, ProjectMemberGuard)
+@UseGuards(JwtAuthGuard, ProjectMemberGuard, PermissionsGuard)
 @Controller('projects/:projectId/sprints')
 export class SprintsController {
   constructor(private readonly sprintsService: SprintsService) {}
@@ -34,6 +36,7 @@ export class SprintsController {
   }
 
   @Post()
+  @RequirePermissions('create_sprint')
   @ApiOperation({ summary: 'Create a sprint' })
   async create(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -44,6 +47,7 @@ export class SprintsController {
   }
 
   @Patch(':id')
+  @RequirePermissions('create_sprint')
   @ApiOperation({ summary: 'Update a sprint' })
   async update(
     @Param('projectId', ParseUUIDPipe) projectId: string,
@@ -55,6 +59,7 @@ export class SprintsController {
   }
 
   @Delete(':id')
+  @RequirePermissions('create_sprint')
   @ApiOperation({ summary: 'Delete a sprint' })
   async remove(
     @Param('projectId', ParseUUIDPipe) projectId: string,

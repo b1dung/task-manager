@@ -1,6 +1,7 @@
 export * from './Avatar'
 export * from './Badge'
 export * from './Button'
+export * from './ConfirmDialog'
 export * from './Dropdown'
 export * from './EmptyState'
 export * from './Input'
