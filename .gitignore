@@ -1,0 +1,16 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+*.log
+.DS_Store
+.idea/
+.vscode/
+*.tsbuildinfo
+playwright-report/
+test-results/
+backend/uploads/
+frontend/dist/
+.claude/
+.git_bk/
