@@ -1,4 +1,5 @@
 import {useState, useRef, useEffect} from 'react'
+import {useTranslation} from 'react-i18next'
 import {createPortal} from 'react-dom'
 import {useSortable} from '@dnd-kit/sortable'
 import {CSS} from '@dnd-kit/utilities'
@@ -64,6 +65,7 @@ const DEFAULT_AVATAR = 'https://jira.mintoku.vn/assets/images/default-avatar.jpg
 // ─── Subtask assignee picker ──────────────────────────────────────────────────
 
 function SubtaskAssigneePicker({subtask, projectId}: { subtask: SubtaskPreview; projectId: string }) {
+    const { t } = useTranslation()
     const [open, setOpen] = useState(false)
     const [dropPos, setDropPos] = useState({top: 0, left: 0, flipUp: false})
     const btnRef = useRef<HTMLButtonElement>(null)
@@ -133,13 +135,13 @@ function SubtaskAssigneePicker({subtask, projectId}: { subtask: SubtaskPreview; 
                     'hover:ring-2 hover:ring-accent/60 hover:ring-offset-1',
                     open && 'ring-2 ring-accent/60 ring-offset-1',
                 )}
-                title={subtask.assignee ? `${subtask.assignee.fullName} — đổi assignee` : 'Gán assignee'}
+                title={subtask.assignee ? t('board.changeAssignee', { name: subtask.assignee.fullName }) : t('board.assignAssignee')}
             >
                 {subtask.assignee ? (
                     <Avatar name={subtask.assignee.fullName} avatarUrl={subtask.assignee.avatarUrl} size="xs"
                             className="!w-full !h-full !flex"/>
                 ) : (
-                    <img src={DEFAULT_AVATAR} alt="Gán assignee" className="w-full h-full object-cover"/>
+                    <img src={DEFAULT_AVATAR} alt={t('board.assignAssignee')} className="w-full h-full object-cover"/>
                 )}
             </button>
 
@@ -158,7 +160,7 @@ function SubtaskAssigneePicker({subtask, projectId}: { subtask: SubtaskPreview; 
                             >
                                 <span
                                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-dashed border-fg-subtle text-[10px]">✕</span>
-                                Bỏ gán
+                                {t('board.unassign')}
                             </button>
                             <div className="h-px bg-border mx-2"/>
                         </>
@@ -279,6 +281,7 @@ function SubtaskBadge({
 // ─── Assignee picker ──────────────────────────────────────────────────────────
 
 function AssigneePicker({task, projectId}: { task: Task; projectId: string }) {
+    const { t } = useTranslation()
     const [open, setOpen] = useState(false)
     const [dropPos, setDropPos] = useState({top: 0, left: 0, flipUp: false})
     const btnRef = useRef<HTMLButtonElement>(null)
@@ -316,7 +319,7 @@ function AssigneePicker({task, projectId}: { task: Task; projectId: string }) {
             )
         },
         onError: () => {
-            toast.error('Cập nhật assignee thất bại')
+            toast.error(t('board.updateAssigneeFailed'))
             qc.invalidateQueries({queryKey: ['tasks', projectId]})
         },
         onSuccess: (updatedTask) => {
@@ -382,13 +385,13 @@ function AssigneePicker({task, projectId}: { task: Task; projectId: string }) {
                     'hover:ring-2 hover:ring-accent/60 hover:ring-offset-1',
                     open && 'ring-2 ring-accent/60 ring-offset-1',
                 )}
-                title={task.assignee ? `${task.assignee.fullName} — đổi assignee` : 'Gán assignee'}
+                title={task.assignee ? t('board.changeAssignee', { name: task.assignee.fullName }) : t('board.assignAssignee')}
             >
                 {task.assignee ? (
                     <Avatar name={task.assignee.fullName} avatarUrl={task.assignee.avatarUrl} size="xs"
                             className="!w-full !h-full !flex"/>
                 ) : (
-                    <img src={DEFAULT_AVATAR} alt="Gán assignee" className="w-full h-full object-cover"/>
+                    <img src={DEFAULT_AVATAR} alt={t('board.assignAssignee')} className="w-full h-full object-cover"/>
                 )}
             </button>
 
@@ -407,7 +410,7 @@ function AssigneePicker({task, projectId}: { task: Task; projectId: string }) {
                             >
                                 <span
                                     className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-dashed border-fg-subtle text-[10px]">✕</span>
-                                Bỏ gán
+                                {t('board.unassign')}
                             </button>
                             <div className="h-px bg-border mx-2"/>
                         </>

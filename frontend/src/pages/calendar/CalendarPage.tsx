@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, Controller } from 'react-hook-form'
@@ -19,8 +20,6 @@ import { useToast } from '@/hooks/useToast'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { DEFAULT_TIMEZONE, formatZonedDate, todayInTimezone, type UserTimezone } from '@/lib/timezones'
-
-const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
 
 const PRIORITY_ICON: Record<string, string> = {
   urgent: '/priority/highest_new.svg',
@@ -62,6 +61,8 @@ function getProjectKey(name: string): string {
 }
 
 export function CalendarPage() {
+  const { t } = useTranslation()
+  const WEEKDAYS = t('calendar.weekdays', { returnObjects: true }) as string[]
   const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const { projectId = '' } = useParams<{ projectId: string }>()
   const qc = useQueryClient()
@@ -134,9 +135,9 @@ export function CalendarPage() {
       tasksApi.update(projectId, id, { dueDate }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks', projectId] })
-      toast.success('Đã cập nhật hạn task')
+      toast.success(t('calendar.rescheduled'))
     },
-    onError: () => toast.error('Cập nhật hạn thất bại'),
+    onError: () => toast.error(t('calendar.rescheduleFailed')),
   })
 
   const handleDrop = (date: Date, e: React.DragEvent) => {
@@ -175,8 +176,8 @@ export function CalendarPage() {
       <div className="flex flex-col gap-3 px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
-            <h1 className="text-base font-semibold text-fg">Calendar</h1>
-            <p className="text-xs text-fg-muted mt-0.5">Manage and track tasks based on due dates.</p>
+            <h1 className="text-base font-semibold text-fg">{t('pages.calendar')}</h1>
+            <p className="text-xs text-fg-muted mt-0.5">{t('pages.calendarSubtitle')}</p>
           </div>
           <div className="flex items-center gap-2">
             {/* View toggle */}
@@ -186,23 +187,23 @@ export function CalendarPage() {
                   key={v}
                   onClick={() => setView(v)}
                   className={cn(
-                    'px-3 py-1.5 text-xs font-medium capitalize transition-colors',
+                    'px-3 py-1.5 text-xs font-medium transition-colors',
                     view === v ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-subtle',
                   )}
                 >
-                  {v}
+                  {t(`calendar.view${v.charAt(0).toUpperCase()}${v.slice(1)}`)}
                 </button>
               ))}
             </div>
             <Button variant="primary" size="sm" onClick={() => setCreateDay(selectedDay ?? new Date())}>
-              <Plus className="w-4 h-4" /> Create Task
+              <Plus className="w-4 h-4" /> {t('calendar.createTask')}
             </Button>
           </div>
         </div>
 
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>Today</Button>
+            <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>{t('filter.today')}</Button>
             <Button variant="ghost" size="icon" onClick={goPrev}><ChevronLeft className="w-4 h-4" /></Button>
             <h2 className="text-sm font-semibold text-fg min-w-44 text-center">{headerLabel}</h2>
             <Button variant="ghost" size="icon" onClick={goNext}><ChevronRight className="w-4 h-4" /></Button>
@@ -214,14 +215,16 @@ export function CalendarPage() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search..."
+                placeholder={t('filter.searchPlaceholder')}
                 className="h-8 w-44 rounded-lg border border-border bg-bg-elevated pl-8 pr-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
-            <FilterSelect value={fDeveloper} onChange={setFDeveloper} placeholder="Developer"
+            <FilterSelect value={fDeveloper} onChange={setFDeveloper} placeholder={t('filter.developer')}
               options={members.map((m) => ({ value: m.userId, label: m.user.fullName }))} />
-            <FilterSelect value={fStatus} onChange={setFStatus} placeholder="Status" options={STATUS_OPTS} />
-            <FilterSelect value={fPriority} onChange={setFPriority} placeholder="Priority" options={PRIORITY_OPTS} />
+            <FilterSelect value={fStatus} onChange={setFStatus} placeholder={t('filter.status')}
+              options={STATUS_OPTS.map((o) => ({ value: o.value, label: t(`status.${o.value}`) }))} />
+            <FilterSelect value={fPriority} onChange={setFPriority} placeholder={t('filter.priority')}
+              options={PRIORITY_OPTS.map((o) => ({ value: o.value, label: t(`priority.${o.value}`) }))} />
           </div>
         </div>
       </div>
@@ -294,7 +297,7 @@ export function CalendarPage() {
                           onClick={(e) => { e.stopPropagation(); setDayModal(day) }}
                           className="w-full text-left text-xs text-accent hover:underline pl-1"
                         >
-                          +{dayTasks.length - maxShow} more
+                          {t('calendar.more', { count: dayTasks.length - maxShow })}
                         </button>
                       )}
                     </div>
@@ -348,13 +351,14 @@ export function CalendarPage() {
 function CalendarTaskCard({ task, projectKey, onOpen }: {
   task: Task; projectKey: string; onOpen: () => void
 }) {
+  const { t } = useTranslation()
   const style = STATUS_STYLE[task.status] ?? STATUS_STYLE.todo
   const tip = [
     `${projectKey}-${task.taskNumber} · ${task.title}`,
-    `Status: ${style.label}`,
-    `Priority: ${task.priority}`,
-    task.assignee ? `Assignee: ${task.assignee.fullName}` : 'Unassigned',
-    task.loggedHours ? `Logged: ${task.loggedHours}h` : null,
+    `${t('calendar.tipStatus')}: ${t(`status.${task.status}`)}`,
+    `${t('calendar.tipPriority')}: ${t(`priority.${task.priority}`)}`,
+    task.assignee ? `${t('calendar.tipAssignee')}: ${task.assignee.fullName}` : t('calendar.tipUnassigned'),
+    task.loggedHours ? `${t('calendar.tipLogged')}: ${task.loggedHours}h` : null,
   ].filter(Boolean).join('\n')
 
   return (
@@ -379,6 +383,7 @@ function CalendarTaskCard({ task, projectKey, onOpen }: {
 function AgendaView({ tasks, loading, projectKey, timezone, onOpen }: {
   tasks: Task[]; loading: boolean; projectKey: string; timezone: UserTimezone; onOpen: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const groups = useMemo(() => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
@@ -405,7 +410,7 @@ function AgendaView({ tasks, loading, projectKey, timezone, onOpen }: {
   if (groups.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <EmptyState title="No upcoming tasks" description="Tasks with due dates will appear here." />
+        <EmptyState title={t('calendar.noUpcoming')} description={t('calendar.noUpcomingDesc')} />
       </div>
     )
   }
@@ -416,7 +421,7 @@ function AgendaView({ tasks, loading, projectKey, timezone, onOpen }: {
         <div key={date}>
           <p className="text-sm font-semibold text-fg mb-2">
             {formatZonedDate(date, timezone, 'vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            <span className="ml-2 text-xs font-normal text-fg-subtle">{items.length} tasks</span>
+            <span className="ml-2 text-xs font-normal text-fg-subtle">{t('board.tasksCount', { count: items.length })}</span>
           </p>
           <div className="space-y-1.5">
             {items.map((t) => (
@@ -457,6 +462,7 @@ function CreateTaskModal({ projectId, dueDate, members, onClose }: {
   members: { userId: string; user: { fullName: string } }[]
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const { data: columns = [] } = useQuery({
@@ -471,51 +477,51 @@ function CreateTaskModal({ projectId, dueDate, members, onClose }: {
     mutationFn: (dto: CreateTaskDto) => tasksApi.create(projectId, dto),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks', projectId] })
-      toast.success('Task đã được tạo')
+      toast.success(t('board.taskCreated'))
       onClose()
     },
-    onError: () => toast.error('Tạo task thất bại'),
+    onError: () => toast.error(t('board.createTaskFailed')),
   })
 
   const submit = handleSubmit((d) => {
     const columnId = columns[0]?.id
-    if (!columnId) { toast.error('Project chưa có cột nào'); return }
+    if (!columnId) { toast.error(t('calendar.noColumns')); return }
     mutate({ ...d, columnId, dueDate, assigneeId: d.assigneeId || undefined })
   })
 
   return (
-    <Modal open onClose={onClose} title="Create Task" size="sm">
+    <Modal open onClose={onClose} title={t('calendar.createTask')} size="sm">
       <form onSubmit={submit} className="p-5 space-y-4">
         <Input
-          {...register('title', { required: 'Nhập tiêu đề task' })}
-          label="Tiêu đề *" placeholder="VD: Homepage redesign"
+          {...register('title', { required: t('board.titleRequired') })}
+          label={`${t('board.titleLabel')} *`} placeholder={t('calendar.titlePlaceholder')}
           error={errors.title?.message} autoFocus
         />
         <div className="flex items-center gap-2 text-xs text-fg-muted">
           <X className="w-3.5 h-3.5 invisible" />
-          <span>Hạn: <span className="font-medium text-fg">{dueDate}</span></span>
+          <span>{t('calendar.due')}: <span className="font-medium text-fg">{dueDate}</span></span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-fg-muted">Priority</span>
+            <span className="text-xs font-medium text-fg-muted">{t('filter.priority')}</span>
             <select {...register('priority')} className="h-9 rounded-lg border border-border bg-bg-elevated px-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-accent">
-              {PRIORITY_OPTS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+              {PRIORITY_OPTS.map((p) => <option key={p.value} value={p.value}>{t(`priority.${p.value}`)}</option>)}
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <span className="text-xs font-medium text-fg-muted">Assignee</span>
+            <span className="text-xs font-medium text-fg-muted">{t('filter.assignee')}</span>
             <Controller name="assigneeId" control={control} render={({ field }) => (
               <select {...field} value={field.value ?? ''} className="h-9 rounded-lg border border-border bg-bg-elevated px-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-accent">
-                <option value="">Unassigned</option>
+                <option value="">{t('archived.unassigned')}</option>
                 {members.map((m) => <option key={m.userId} value={m.userId}>{m.user.fullName}</option>)}
               </select>
             )} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" type="button" onClick={onClose}>Hủy</Button>
+          <Button variant="ghost" type="button" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" type="submit" loading={isPending}>
-            <Plus className="w-4 h-4" /> Tạo task
+            <Plus className="w-4 h-4" /> {t('board.createTask')}
           </Button>
         </div>
       </form>

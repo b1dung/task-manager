@@ -80,8 +80,13 @@ function SecureImageView({ node, extension, selected }: NodeViewProps) {
 
 export const SecureImage = Image.extend<ImageOptions & SecureImageOptions>({
   addOptions() {
+    const parent = this.parent?.()
     return {
-      ...this.parent?.(),
+      ...parent,
+      inline: parent?.inline ?? false,
+      allowBase64: parent?.allowBase64 ?? false,
+      HTMLAttributes: parent?.HTMLAttributes ?? {},
+      resize: parent?.resize ?? false,
       projectId: '',
     }
   },

@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useMemo, useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, Shield, User, Mail, Lock, Search, Pencil, Link2, Copy, Check, Trash2, Clock } from 'lucide-react'
 import { usersApi, type AppUser } from '@/api/users'
@@ -25,6 +26,7 @@ function apiErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function UserManagementPage() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const canManage = useHasPermission('manage_users')
@@ -69,17 +71,17 @@ export function UserManagementPage() {
       qc.invalidateQueries({ queryKey: ['users'] })
       qc.invalidateQueries({ queryKey: ['me', 'permissions'] })
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Cập nhật thất bại')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('users.updateFailed'))),
   })
 
   const { mutate: deleteUser, isPending: deleting } = useMutation({
     mutationFn: (id: string) => usersApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      toast.success('Đã xóa người dùng')
+      toast.success(t('users.deleted'))
       setDeleteTarget(null)
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể xóa người dùng')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('users.deleteFailed'))),
   })
 
   return (
@@ -87,11 +89,11 @@ export function UserManagementPage() {
       {/* Header */}
       <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-fg">Quản lý người dùng</h1>
+          <h1 className="text-base font-semibold text-fg">{t('pages.users')}</h1>
           <p className="text-xs text-fg-muted mt-0.5">
-            {users.length} người dùng
+            {t('pages.usersSubtitle', { count: users.length })}
             {pendingCount > 0 && (
-              <span className="text-warning"> · {pendingCount} chờ duyệt</span>
+              <span className="text-warning"> · {t('pages.usersPending', { count: pendingCount })}</span>
             )}
           </p>
         </div>
@@ -101,17 +103,17 @@ export function UserManagementPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm theo tên hoặc email..."
+              placeholder={t('filter.searchNameEmail')}
               className="h-8 w-56 pl-8 pr-3 rounded-lg border border-border bg-bg-elevated text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
           {canManage && (
             <>
               <Button variant="secondary" size="sm" onClick={() => setShowInvite(true)}>
-                <Link2 className="w-4 h-4" /> Mời qua link
+                <Link2 className="w-4 h-4" /> {t('users.inviteLink')}
               </Button>
               <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-                <UserPlus className="w-4 h-4" /> Tạo user mới
+                <UserPlus className="w-4 h-4" /> {t('users.createUser')}
               </Button>
             </>
           )}
@@ -125,18 +127,18 @@ export function UserManagementPage() {
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
           </div>
         ) : users.length === 0 ? (
-          <EmptyState icon={<User className="w-12 h-12" />} title="Không tìm thấy người dùng" />
+          <EmptyState icon={<User className="w-12 h-12" />} title={t('users.emptyTitle')} />
         ) : (
           <div className="rounded-card border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-bg-subtle text-left text-xs text-fg-muted">
-                  <th className="px-4 py-2.5 font-semibold">Người dùng</th>
-                  <th className="px-4 py-2.5 font-semibold">Email</th>
-                  <th className="px-4 py-2.5 font-semibold">Vai trò (phân quyền)</th>
-                  <th className="px-4 py-2.5 font-semibold">Trạng thái</th>
-                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">Ngày tạo</th>
-                  {canManage && <th className="px-4 py-2.5 font-semibold text-right">Thao tác</th>}
+                  <th className="px-4 py-2.5 font-semibold">{t('users.colUser')}</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('users.colEmail')}</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('users.colRole')}</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('users.colStatus')}</th>
+                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">{t('users.colCreated')}</th>
+                  {canManage && <th className="px-4 py-2.5 font-semibold text-right">{t('users.colActions')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -156,14 +158,14 @@ export function UserManagementPage() {
                           onChange={(e) => patchUser({ id: u.id, roleId: e.target.value || null })}
                           className="h-8 max-w-[180px] rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
                         >
-                          <option value="">Mặc định ({u.role})</option>
+                          <option value="">{t('users.defaultRole', { role: u.role })}</option>
                           {roles.map((r) => (
                             <option key={r.id} value={r.id}>{r.name}</option>
                           ))}
                         </select>
                       ) : (
                         <span className="text-fg">
-                          {u.roleId ? roleById.get(u.roleId)?.name ?? '—' : `Mặc định (${u.role})`}
+                          {u.roleId ? roleById.get(u.roleId)?.name ?? '—' : t('users.defaultRole', { role: u.role })}
                         </span>
                       )}
                     </td>
@@ -174,26 +176,26 @@ export function UserManagementPage() {
                             type="button"
                             onClick={() => patchUser({ id: u.id, isActive: false })}
                             className="inline-flex items-center gap-2"
-                            title="Tạm khóa tài khoản"
+                            title={t('users.lockAccount')}
                           >
                             <span className="relative h-5 w-9 shrink-0 rounded-full bg-accent">
                               <span className="absolute top-0.5 left-0.5 h-4 w-4 translate-x-4 rounded-full bg-white" />
                             </span>
-                            <span className="text-xs text-fg-muted">Hoạt động</span>
+                            <span className="text-xs text-fg-muted">{t('users.active')}</span>
                           </button>
                         ) : (
                           <div className="inline-flex items-center gap-2">
                             <span className="inline-flex items-center gap-1 rounded-full bg-warning/15 px-2 py-0.5 text-xs font-medium text-warning">
-                              <Clock className="w-3 h-3" /> Chờ duyệt
+                              <Clock className="w-3 h-3" /> {t('users.pending')}
                             </span>
                             <Button size="sm" variant="primary" onClick={() => patchUser({ id: u.id, isActive: true })}>
-                              <Check className="w-3.5 h-3.5" /> Duyệt
+                              <Check className="w-3.5 h-3.5" /> {t('users.approve')}
                             </Button>
                           </div>
                         )
                       ) : (
                         <span className={cn('text-xs', u.isActive ? 'text-success' : 'text-warning')}>
-                          {u.isActive ? 'Hoạt động' : 'Chờ duyệt'}
+                          {u.isActive ? t('users.active') : t('users.pending')}
                         </span>
                       )}
                     </td>
@@ -205,7 +207,7 @@ export function UserManagementPage() {
                             <button
                               onClick={() => setEditId(u.id)}
                               className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors"
-                              title="Chỉnh sửa"
+                              title={t('users.edit')}
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
@@ -214,7 +216,7 @@ export function UserManagementPage() {
                             <button
                               onClick={() => setDeleteTarget(u)}
                               className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors"
-                              title="Xóa người dùng"
+                              title={t('users.deleteUser')}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -235,7 +237,7 @@ export function UserManagementPage() {
           <CreateUserModal open={showCreate} roles={roles} onClose={() => setShowCreate(false)} />
           <EditUserModal open={!!editId} userId={editId} roles={roles} onClose={() => setEditId(null)} />
           <InviteModal open={showInvite} roles={roles} onClose={() => setShowInvite(false)} />
-          <Modal open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} title="Xóa người dùng" size="sm">
+          <Modal open={!!deleteTarget} onClose={() => !deleting && setDeleteTarget(null)} title={t('users.deleteTitle')} size="sm">
             {deleteTarget && (
               <>
                 <div className="px-5 py-4 space-y-3">
@@ -248,16 +250,13 @@ export function UserManagementPage() {
                   </div>
                   <div className="flex items-start gap-2 rounded-lg border border-danger/30 bg-danger/5 px-3 py-2.5 text-sm">
                     <Trash2 className="w-4 h-4 text-danger mt-0.5 shrink-0" />
-                    <span className="text-fg-muted">
-                      Hành động này <span className="font-medium text-fg">không thể hoàn tác</span>.
-                      Các dự án do người dùng này <span className="font-medium text-fg">sở hữu</span> cùng toàn bộ task, cột, sprint trong đó sẽ bị xóa vĩnh viễn.
-                    </span>
+                    <span className="text-fg-muted">{t('users.deleteWarning')}</span>
                   </div>
                 </div>
                 <div className="px-5 py-4 border-t border-border flex justify-end gap-3">
-                  <Button variant="ghost" size="sm" disabled={deleting} onClick={() => setDeleteTarget(null)}>Hủy</Button>
+                  <Button variant="ghost" size="sm" disabled={deleting} onClick={() => setDeleteTarget(null)}>{t('common.cancel')}</Button>
                   <Button variant="danger" size="sm" loading={deleting} onClick={() => deleteUser(deleteTarget.id)}>
-                    Xóa vĩnh viễn
+                    {t('users.deletePermanent')}
                   </Button>
                 </div>
               </>
@@ -270,6 +269,7 @@ export function UserManagementPage() {
 }
 
 function InviteModal({ open, roles, onClose }: { open: boolean; roles: Role[]; onClose: () => void }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [email, setEmail] = useState('')
@@ -295,36 +295,33 @@ function InviteModal({ open, roles, onClose }: { open: boolean; roles: Role[]; o
       setEmail(''); setRoleId('')
       qc.invalidateQueries({ queryKey: ['invites'] })
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể tạo lời mời')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('users.inviteCreateFailed'))),
   })
 
   const { mutate: revoke } = useMutation({
     mutationFn: (id: string) => invitesApi.revoke(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invites'] }),
-    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể thu hồi')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('users.revokeFailed'))),
   })
 
   const copyLink = async () => {
     if (!created) return
     await navigator.clipboard.writeText(created.link)
     setCopied(true)
-    toast.success('Đã sao chép link mời')
+    toast.success(t('users.linkCopied'))
     setTimeout(() => setCopied(false), 2000)
   }
 
   const valid = EMAIL_RE.test(email.trim())
 
   return (
-    <Modal open={open} onClose={handleClose} title="Mời thành viên qua link" size="md">
+    <Modal open={open} onClose={handleClose} title={t('users.inviteTitle')} size="md">
       <div className="px-5 py-4 space-y-4">
         {created ? (
           <div className="space-y-3">
             <div className="flex items-start gap-2 rounded-lg border border-success/30 bg-success/5 px-3 py-2.5 text-sm">
               <Check className="w-4 h-4 text-success mt-0.5 shrink-0" />
-              <span className="text-fg-muted">
-                Đã tạo lời mời cho <span className="font-medium text-fg">{created.email}</span>.
-                Gửi link này cho họ — link có hiệu lực 7 ngày.
-              </span>
+              <span className="text-fg-muted">{t('users.inviteCreatedMsg', { email: created.email })}</span>
             </div>
             <div className="flex items-center gap-2">
               <input readOnly value={created.link} className={cn(inputCls, 'font-mono text-xs')} />
@@ -332,41 +329,41 @@ function InviteModal({ open, roles, onClose }: { open: boolean; roles: Role[]; o
                 {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
               </Button>
             </div>
-            <Button variant="ghost" size="sm" onClick={() => setCreated(null)}>+ Mời thêm người khác</Button>
+            <Button variant="ghost" size="sm" onClick={() => setCreated(null)}>{t('users.inviteAnother')}</Button>
           </div>
         ) : (
           <>
             <div className="space-y-1.5">
-              <label className={labelCls}><Mail className="w-3.5 h-3.5" /> Email người được mời</label>
+              <label className={labelCls}><Mail className="w-3.5 h-3.5" /> {t('users.inviteEmailLabel')}</label>
               <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@taskboard.dev" />
             </div>
             <div className="space-y-1.5">
-              <label className={labelCls}><Shield className="w-3.5 h-3.5" /> Vai trò (phân quyền)</label>
+              <label className={labelCls}><Shield className="w-3.5 h-3.5" /> {t('users.roleLabel')}</label>
               <select className={inputCls} value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-                <option value="">Mặc định (Member)</option>
+                <option value="">{t('users.defaultMember')}</option>
                 {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
             <Button variant="primary" size="sm" className="w-full" loading={isPending} disabled={!valid} onClick={() => submit()}>
-              <Link2 className="w-4 h-4" /> Tạo link mời
+              <Link2 className="w-4 h-4" /> {t('users.createInviteLink')}
             </Button>
           </>
         )}
 
         {pending.length > 0 && (
           <div className="pt-2 border-t border-border">
-            <p className="text-xs font-medium text-fg-muted mb-2">Lời mời đang chờ ({pending.length})</p>
+            <p className="text-xs font-medium text-fg-muted mb-2">{t('users.pendingInvites', { count: pending.length })}</p>
             <ul className="space-y-1.5 max-h-48 overflow-y-auto scrollbar-thin">
               {pending.map((inv: Invite) => (
                 <li key={inv.id} className="flex items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm">
                   <div className="min-w-0">
                     <p className="text-fg truncate">{inv.email}</p>
-                    <p className="text-xs text-fg-subtle">{inv.roleName ?? 'Member'} · hết hạn {formatDate(inv.expiresAt)}</p>
+                    <p className="text-xs text-fg-subtle">{inv.roleName ?? 'Member'} · {t('users.expiresOn', { date: formatDate(inv.expiresAt) })}</p>
                   </div>
                   <button
                     onClick={() => revoke(inv.id)}
                     className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors shrink-0"
-                    title="Thu hồi lời mời"
+                    title={t('users.revokeInvite')}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -377,13 +374,14 @@ function InviteModal({ open, roles, onClose }: { open: boolean; roles: Role[]; o
         )}
       </div>
       <div className="px-5 py-4 border-t border-border flex justify-end">
-        <Button variant="ghost" size="sm" onClick={handleClose}>Đóng</Button>
+        <Button variant="ghost" size="sm" onClick={handleClose}>{t('common.close')}</Button>
       </div>
     </Modal>
   )
 }
 
 function CreateUserModal({ open, roles, onClose }: { open: boolean; roles: Role[]; onClose: () => void }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [fullName, setFullName] = useState('')
@@ -408,44 +406,44 @@ function CreateUserModal({ open, roles, onClose }: { open: boolean; roles: Role[
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['users'] })
-      toast.success('Đã tạo user mới')
+      toast.success(t('users.createdUser'))
       handleClose()
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể tạo user')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('users.createUserFailed'))),
   })
 
   const valid = fullName.trim().length >= 2 && EMAIL_RE.test(email.trim()) && password.length >= 8
 
   return (
-    <Modal open={open} onClose={handleClose} title="Tạo user mới" size="md">
+    <Modal open={open} onClose={handleClose} title={t('users.createUser')} size="md">
       <div className="px-5 py-4 space-y-4">
         <div className="space-y-1.5">
-          <label className={labelCls}><User className="w-3.5 h-3.5" /> Họ và tên</label>
-          <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nguyễn Văn A" />
+          <label className={labelCls}><User className="w-3.5 h-3.5" /> {t('users.fullNameLabel')}</label>
+          <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t('users.fullNamePlaceholder')} />
         </div>
         <div className="space-y-1.5">
           <label className={labelCls}><Mail className="w-3.5 h-3.5" /> Email</label>
           <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="user@taskboard.dev" />
         </div>
         <div className="space-y-1.5">
-          <label className={labelCls}><Lock className="w-3.5 h-3.5" /> Mật khẩu</label>
-          <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Tối thiểu 8 ký tự" />
+          <label className={labelCls}><Lock className="w-3.5 h-3.5" /> {t('users.passwordLabel')}</label>
+          <input className={inputCls} type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder={t('users.passwordPlaceholder')} />
           {password.length > 0 && password.length < 8 && (
-            <p className="text-xs text-danger">Mật khẩu phải có ít nhất 8 ký tự</p>
+            <p className="text-xs text-danger">{t('users.passwordMin8')}</p>
           )}
         </div>
         <div className="space-y-1.5">
-          <label className={labelCls}><Shield className="w-3.5 h-3.5" /> Vai trò (phân quyền)</label>
+          <label className={labelCls}><Shield className="w-3.5 h-3.5" /> {t('users.roleLabel')}</label>
           <select className={inputCls} value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-            <option value="">Mặc định (Member)</option>
+            <option value="">{t('users.defaultMember')}</option>
             {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
           </select>
         </div>
       </div>
       <div className="px-5 py-4 border-t border-border flex justify-end gap-3">
-        <Button variant="ghost" size="sm" onClick={handleClose}>Hủy</Button>
+        <Button variant="ghost" size="sm" onClick={handleClose}>{t('common.cancel')}</Button>
         <Button variant="primary" size="sm" loading={isPending} disabled={!valid} onClick={() => submit()}>
-          Tạo user
+          {t('users.createUserBtn')}
         </Button>
       </div>
     </Modal>
@@ -453,6 +451,7 @@ function CreateUserModal({ open, roles, onClose }: { open: boolean; roles: Role[
 }
 
 function EditUserModal({ open, userId, roles, onClose }: { open: boolean; userId: string | null; roles: Role[]; onClose: () => void }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
 
@@ -488,10 +487,10 @@ function EditUserModal({ open, userId, roles, onClose }: { open: boolean; userId
       qc.invalidateQueries({ queryKey: ['user', userId] })
       qc.invalidateQueries({ queryKey: ['users'] })
       qc.invalidateQueries({ queryKey: ['me', 'permissions'] })
-      toast.success('Đã cập nhật thông tin user')
+      toast.success(t('users.userUpdated'))
       onClose()
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Cập nhật thất bại')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('users.updateFailed'))),
   })
 
   const dirty =
@@ -503,7 +502,7 @@ function EditUserModal({ open, userId, roles, onClose }: { open: boolean; userId
   const valid = fullName.trim().length >= 2 && EMAIL_RE.test(email.trim())
 
   return (
-    <Modal open={open} onClose={onClose} title="Chỉnh sửa người dùng" size="md">
+    <Modal open={open} onClose={onClose} title={t('users.editTitle')} size="md">
       {isLoading || !detail ? (
         <div className="flex items-center justify-center py-16"><Spinner /></div>
       ) : (
@@ -514,12 +513,12 @@ function EditUserModal({ open, userId, roles, onClose }: { open: boolean; userId
               <div className="min-w-0">
                 <p className="text-sm font-medium text-fg truncate">{detail.fullName}</p>
                 <p className="text-xs text-fg-muted truncate">{detail.email}</p>
-                <p className="mt-1 text-xs text-fg-subtle">Tạo ngày {formatDate(detail.createdAt)}</p>
+                <p className="mt-1 text-xs text-fg-subtle">{t('users.createdOn', { date: formatDate(detail.createdAt) })}</p>
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className={labelCls}><User className="w-3.5 h-3.5" /> Họ và tên</label>
+              <label className={labelCls}><User className="w-3.5 h-3.5" /> {t('users.fullNameLabel')}</label>
               <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} />
             </div>
             <div className="space-y-1.5">
@@ -527,15 +526,15 @@ function EditUserModal({ open, userId, roles, onClose }: { open: boolean; userId
               <input className={inputCls} type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <label className={labelCls}><Shield className="w-3.5 h-3.5" /> Vai trò (phân quyền)</label>
+              <label className={labelCls}><Shield className="w-3.5 h-3.5" /> {t('users.roleLabel')}</label>
               <select className={inputCls} value={roleId} onChange={(e) => setRoleId(e.target.value)}>
-                <option value="">Mặc định (theo vai trò {detail.role})</option>
+                <option value="">{t('users.defaultByRole', { role: detail.role })}</option>
                 {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
               </select>
             </div>
 
             <label className="flex items-center justify-between gap-3 rounded-lg border border-border bg-bg-elevated px-3 py-2.5 cursor-pointer">
-              <span className="text-sm text-fg">Tài khoản đang hoạt động</span>
+              <span className="text-sm text-fg">{t('users.accountActive')}</span>
               <button
                 type="button"
                 onClick={() => setIsActive((v) => !v)}
@@ -552,9 +551,9 @@ function EditUserModal({ open, userId, roles, onClose }: { open: boolean; userId
             </label>
           </div>
           <div className="px-5 py-4 border-t border-border flex justify-end gap-3">
-            <Button variant="ghost" size="sm" onClick={onClose}>Đóng</Button>
+            <Button variant="ghost" size="sm" onClick={onClose}>{t('common.close')}</Button>
             <Button variant="primary" size="sm" loading={isPending} disabled={!dirty || !valid} onClick={() => save()}>
-              Lưu thay đổi
+              {t('users.saveChanges')}
             </Button>
           </div>
         </>

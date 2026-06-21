@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -14,11 +15,11 @@ import { formatRelative, cn } from '@/lib/utils'
 
 type Filter = 'all' | 'image' | 'document' | 'other'
 
-const FILTERS: { value: Filter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'image', label: 'Images' },
-  { value: 'document', label: 'Documents' },
-  { value: 'other', label: 'Other' },
+const FILTERS: { value: Filter; key: string }[] = [
+  { value: 'all', key: 'common.all' },
+  { value: 'image', key: 'filter.catImages' },
+  { value: 'document', key: 'filter.catDocuments' },
+  { value: 'other', key: 'filter.catOther' },
 ]
 
 const DOC_TYPES = ['pdf', 'word', 'excel', 'spreadsheet', 'presentation', 'text', 'csv', 'document', 'msword', 'officedocument']
@@ -54,6 +55,7 @@ function FileTypeIcon({ mime }: { mime: string }) {
 }
 
 export function AttachmentsPage() {
+  const { t } = useTranslation()
   const { projectId = '' } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -81,9 +83,9 @@ export function AttachmentsPage() {
     mutationFn: (a: ProjectAttachment) => attachmentsApi.remove(projectId, a.taskId, a.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['attachments', projectId] })
-      toast.success('Đã xóa file')
+      toast.success(t('taskDetail.fileDeleted'))
     },
-    onError: () => toast.error('Xóa file thất bại (chỉ xóa được file của bạn)'),
+    onError: () => toast.error(t('taskDetail.fileDeleteFailed')),
   })
 
   const filtered = useMemo(() => {
@@ -109,7 +111,7 @@ export function AttachmentsPage() {
       el.href = url; el.download = a.fileName.normalize('NFC'); el.click()
       URL.revokeObjectURL(url)
     } catch {
-      toast.error('Tải file thất bại')
+      toast.error(t('taskDetail.fileDownloadFailed'))
     }
   }
 
@@ -121,10 +123,10 @@ export function AttachmentsPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-fg">Attachments</h1>
+          <h1 className="text-base font-semibold text-fg">{t('pages.attachments')}</h1>
           <p className="text-xs text-fg-muted mt-0.5">
-            Tất cả file đính kèm trong mô tả task của project.
-            {!isLoading && ` ${counts.total} file · ${formatBytes(counts.size)}`}
+            {t('pages.attachmentsSubtitle')}
+            {!isLoading && ` ${t('attachments.countSummary', { count: counts.total, size: formatBytes(counts.size) })}`}
           </p>
         </div>
       </div>
@@ -136,7 +138,7 @@ export function AttachmentsPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm theo tên file hoặc task..."
+            placeholder={t('filter.searchFileTask')}
             className="h-8 w-64 rounded-lg border border-border bg-bg-elevated pl-8 pr-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
@@ -150,7 +152,7 @@ export function AttachmentsPage() {
                 filter === f.value ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-subtle',
               )}
             >
-              {f.label}
+              {t(f.key)}
             </button>
           ))}
         </div>
@@ -166,8 +168,8 @@ export function AttachmentsPage() {
           <div className="flex items-center justify-center h-full">
             <EmptyState
               icon={<Paperclip className="w-12 h-12" />}
-              title={attachments.length === 0 ? 'Chưa có file đính kèm' : 'Không tìm thấy file phù hợp'}
-              description={attachments.length === 0 ? 'File upload trong mô tả task sẽ hiển thị ở đây.' : undefined}
+              title={attachments.length === 0 ? t('attachments.emptyTitle') : t('attachments.noMatch')}
+              description={attachments.length === 0 ? t('attachments.emptyDesc') : undefined}
             />
           </div>
         ) : (
@@ -184,7 +186,7 @@ export function AttachmentsPage() {
                     type="button"
                     onClick={() => download(a)}
                     className="relative flex items-center justify-center h-32 bg-bg-subtle overflow-hidden"
-                    title="Mở file"
+                    title={t('taskDetail.openFile')}
                   >
                     <span className="text-fg-subtle"><FileTypeIcon mime={a.mimeType} /></span>
                     <span className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity rounded bg-black/50 p-1 text-white">
@@ -210,7 +212,7 @@ export function AttachmentsPage() {
                         <Avatar name={a.uploader.fullName} avatarUrl={a.uploader.avatarUrl} size="xs" />
                       )}
                       <span className="text-[11px] text-fg-subtle truncate flex-1">
-                        {a.uploader?.fullName ?? 'Unknown'}
+                        {a.uploader?.fullName ?? t('attachments.unknown')}
                       </span>
                     </div>
                   </div>
@@ -221,7 +223,7 @@ export function AttachmentsPage() {
                       onClick={() => download(a)}
                       className="flex-1 flex items-center justify-center gap-1 py-2 text-xs text-fg-muted hover:bg-bg-subtle hover:text-fg transition-colors"
                     >
-                      <Download className="w-3.5 h-3.5" /> Tải
+                      <Download className="w-3.5 h-3.5" /> {t('taskDetail.download')}
                     </button>
                     {canDelete && (
                       <button
@@ -229,7 +231,7 @@ export function AttachmentsPage() {
                         disabled={removing}
                         className="flex-1 flex items-center justify-center gap-1 py-2 text-xs text-fg-muted hover:bg-danger/10 hover:text-danger transition-colors border-l border-border disabled:opacity-50"
                       >
-                        <Trash2 className="w-3.5 h-3.5" /> Xóa
+                        <Trash2 className="w-3.5 h-3.5" /> {t('common.delete')}
                       </button>
                     )}
                   </div>

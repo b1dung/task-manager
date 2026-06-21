@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -63,6 +64,7 @@ const ACTION_LABEL: Record<string, string> = {
 // ─── Page ───────────────────────────────────────────────────────────────────
 
 export function SummaryPage() {
+  const { t } = useTranslation()
   const { projectId = '' } = useParams<{ projectId: string }>()
 
   const { data: project } = useQuery({
@@ -84,9 +86,9 @@ export function SummaryPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-fg">Summary</h1>
+          <h1 className="text-base font-semibold text-fg">{t('pages.summary')}</h1>
           <p className="text-xs text-fg-muted mt-0.5">
-            Get a snapshot of your project activities and team performance.
+            {t('pages.summarySubtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2 shrink-0">

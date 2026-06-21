@@ -7,10 +7,12 @@ import { Avatar, Button, EmptyState, Skeleton } from '@/components/ui'
 import { formatRelative, cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { DEFAULT_TIMEZONE, formatZonedDateTime } from '@/lib/timezones'
+import { useTranslation } from 'react-i18next'
 
 type Filter = 'all' | 'unread'
 
 export function NotificationsPage() {
+  const { t } = useTranslation()
   const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -41,7 +43,7 @@ export function NotificationsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden max-w-2xl mx-auto w-full">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-        <h1 className="text-base font-semibold text-fg">Thông báo</h1>
+        <h1 className="text-base font-semibold text-fg">{t('notifications.title')}</h1>
         <div className="flex items-center gap-2">
           <div className="flex rounded-lg border border-border overflow-hidden text-sm">
             {(['all', 'unread'] as Filter[]).map((f) => (
@@ -53,12 +55,12 @@ export function NotificationsPage() {
                   filter === f ? 'bg-accent/15 text-accent' : 'text-fg-muted hover:text-fg',
                 )}
               >
-                {f === 'all' ? 'Tất cả' : 'Chưa đọc'}
+                {f === 'all' ? t('common.all') : t('notifications.unread')}
               </button>
             ))}
           </div>
           <Button variant="ghost" size="sm" onClick={() => markAll()}>
-            <CheckCheck className="w-4 h-4" /> Đọc tất cả
+            <CheckCheck className="w-4 h-4" /> {t('notifications.markAll')}
           </Button>
         </div>
       </div>
@@ -71,7 +73,7 @@ export function NotificationsPage() {
         ) : notifications.length === 0 ? (
           <EmptyState
             icon={<BellOff className="w-12 h-12" />}
-            title="Không có thông báo nào"
+            title={t('notifications.empty')}
           />
         ) : (
           <div className="divide-y divide-border">

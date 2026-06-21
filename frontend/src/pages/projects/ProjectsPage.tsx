@@ -7,8 +7,10 @@ import { Button, EmptyState, Modal, Input, Skeleton } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { useForm } from 'react-hook-form'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useTranslation } from 'react-i18next'
 
 export function ProjectsPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const toast = useToast()
@@ -26,21 +28,21 @@ export function ProjectsPage() {
     mutationFn: projectsApi.create,
     onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ['projects'] })
-      toast.success('Dự án đã được tạo')
+      toast.success(t('projects.created'))
       setShowCreate(false)
       reset()
       navigate(`/projects/${p.id}/tasks`)
     },
-    onError: () => toast.error('Tạo dự án thất bại'),
+    onError: () => toast.error(t('projects.createFailed')),
   })
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold text-fg">Dự án</h1>
+        <h1 className="text-2xl font-semibold text-fg">{t('projects.title')}</h1>
         {canCreate && (
           <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="w-4 h-4" /> Tạo dự án
+            <Plus className="w-4 h-4" /> {t('projects.create')}
           </Button>
         )}
       </div>
@@ -52,12 +54,12 @@ export function ProjectsPage() {
       ) : !projects?.length ? (
         <EmptyState
           icon={<Folder className="w-12 h-12" />}
-          title="Chưa có dự án nào"
-          description={canCreate ? 'Tạo dự án đầu tiên để bắt đầu quản lý công việc' : 'Bạn chưa được thêm vào dự án nào'}
+          title={t('projects.empty')}
+          description={canCreate ? t('projects.emptyCreate') : t('projects.emptyMember')}
           action={
             canCreate ? (
               <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-                <Plus className="w-4 h-4" /> Tạo dự án
+                <Plus className="w-4 h-4" /> {t('projects.create')}
               </Button>
             ) : undefined
           }
@@ -80,13 +82,13 @@ export function ProjectsPage() {
         </div>
       )}
 
-      <Modal open={showCreate} onClose={() => { setShowCreate(false); reset() }} title="Tạo dự án mới" size="sm">
+      <Modal open={showCreate} onClose={() => { setShowCreate(false); reset() }} title={t('projects.createTitle')} size="sm">
         <form onSubmit={handleSubmit((d) => create(d))} className="p-5 space-y-4">
-          <Input {...register('name', { required: true })} label="Tên dự án" placeholder="VD: Website Redesign" />
-          <Input {...register('description')} label="Mô tả (tùy chọn)" placeholder="Mô tả ngắn về dự án..." />
+          <Input {...register('name', { required: true })} label={t('projects.name')} placeholder={t('projects.namePlaceholder')} />
+          <Input {...register('description')} label={t('projects.description')} placeholder={t('projects.descriptionPlaceholder')} />
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="ghost" type="button" onClick={() => { setShowCreate(false); reset() }}>Hủy</Button>
-            <Button variant="primary" type="submit" loading={isPending}>Tạo</Button>
+            <Button variant="ghost" type="button" onClick={() => { setShowCreate(false); reset() }}>{t('common.cancel')}</Button>
+            <Button variant="primary" type="submit" loading={isPending}>{t('common.create')}</Button>
           </div>
         </form>
       </Modal>

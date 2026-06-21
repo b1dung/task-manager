@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
+import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Archive, ArchiveRestore, Trash2, Search, ListTodo, Folder, Bug, Bookmark, CheckSquare,
@@ -30,10 +31,11 @@ function getProjectKey(name: string): string {
 }
 
 function ArchivedMeta({ at, by }: { at: string | null; by: ArchivedUser | null }) {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center gap-1.5 text-xs text-fg-subtle" title={at ? new Date(at).toLocaleString() : ''}>
       {by && <Avatar name={by.fullName} avatarUrl={by.avatarUrl} size="xs" />}
-      <span>{by ? by.fullName : 'Hệ thống'} · {at ? formatRelative(at) : '—'}</span>
+      <span>{by ? by.fullName : t('archived.system')} · {at ? formatRelative(at) : '—'}</span>
     </div>
   )
 }
@@ -41,10 +43,10 @@ function ArchivedMeta({ at, by }: { at: string | null; by: ArchivedUser | null }
 type Tab = 'tasks' | 'projects'
 
 export function ArchivedPage() {
+  const { t } = useTranslation()
   const { projectId = '' } = useParams<{ projectId: string }>()
   const qc = useQueryClient()
   const toast = useToast()
-  const navigate = useNavigate()
   const canManageProjects = useHasPermission('delete_project')
 
   const [tab, setTab] = useState<Tab>('tasks')
@@ -87,37 +89,37 @@ export function ArchivedPage() {
 
   // ── Mutations ───────────────────────────────────────────────────────────────
   const { mutate: restoreTask } = useMutation({
-    mutationFn: (t: ArchivedTask) => tasksApi.unarchive(projectId, t.id).then(() => t),
-    onSuccess: (t) => {
+    mutationFn: (task: ArchivedTask) => tasksApi.unarchive(projectId, task.id).then(() => task),
+    onSuccess: (task) => {
       invalidate()
-      toast.undo(`Đã khôi phục "${t.title}"`, () => {
-        tasksApi.archive(projectId, t.id).then(invalidate).catch(() => toast.error('Hoàn tác thất bại'))
+      toast.undo(t('archived.restored', { title: task.title }), () => {
+        tasksApi.archive(projectId, task.id).then(invalidate).catch(() => toast.error(t('archived.undoFailed')))
       }, 5000)
     },
-    onError: () => toast.error('Khôi phục thất bại'),
+    onError: () => toast.error(t('archived.restoreFailed')),
   })
 
   const { mutate: removeTask, isPending: deletingTask } = useMutation({
     mutationFn: (id: string) => tasksApi.delete(projectId, id),
-    onSuccess: () => { invalidate(); toast.success('Đã xóa vĩnh viễn'); setDeleteTask(null) },
-    onError: () => toast.error('Xóa thất bại'),
+    onSuccess: () => { invalidate(); toast.success(t('archived.deletedPermanently')); setDeleteTask(null) },
+    onError: () => toast.error(t('archived.deleteFailed')),
   })
 
   const { mutate: restoreProject } = useMutation({
-    mutationFn: (p: ArchivedProject) => projectsApi.manageArchive(p.id, false).then(() => p),
-    onSuccess: (p) => {
+    mutationFn: (proj: ArchivedProject) => projectsApi.manageArchive(proj.id, false).then(() => proj),
+    onSuccess: (proj) => {
       invalidate()
-      toast.undo(`Đã khôi phục dự án "${p.name}"`, () => {
-        projectsApi.manageArchive(p.id, true).then(invalidate).catch(() => toast.error('Hoàn tác thất bại'))
+      toast.undo(t('archived.restoredProject', { name: proj.name }), () => {
+        projectsApi.manageArchive(proj.id, true).then(invalidate).catch(() => toast.error(t('archived.undoFailed')))
       }, 5000)
     },
-    onError: () => toast.error('Khôi phục dự án thất bại'),
+    onError: () => toast.error(t('archived.restoreProjectFailed')),
   })
 
   const { mutate: removeProject, isPending: deletingProject } = useMutation({
     mutationFn: (id: string) => projectsApi.manageDelete(id),
-    onSuccess: () => { invalidate(); toast.success('Đã xóa vĩnh viễn dự án'); setDeleteProject(null) },
-    onError: () => toast.error('Xóa dự án thất bại'),
+    onSuccess: () => { invalidate(); toast.success(t('archived.deletedProjectPermanently')); setDeleteProject(null) },
+    onError: () => toast.error(t('archived.deleteProjectFailed')),
   })
 
   const chips = [
@@ -131,9 +133,9 @@ export function ArchivedPage() {
       <div className="px-6 py-4 border-b border-border shrink-0">
         <div className="flex items-center gap-2">
           <Archive className="w-5 h-5 text-fg-muted" />
-          <h1 className="text-base font-semibold text-fg">Lưu trữ</h1>
+          <h1 className="text-base font-semibold text-fg">{t('pages.archived')}</h1>
         </div>
-        <p className="text-xs text-fg-muted mt-0.5">Khôi phục hoặc xóa vĩnh viễn các mục đã lưu trữ</p>
+        <p className="text-xs text-fg-muted mt-0.5">{t('pages.archivedSubtitle')}</p>
         <div className="flex flex-wrap gap-2 mt-3">
           {chips.map((c) => (
             <button
@@ -144,7 +146,7 @@ export function ArchivedPage() {
                 tab === c.key ? 'border-accent bg-accent/10 text-accent' : 'border-border text-fg-muted hover:text-fg',
               )}
             >
-              {c.icon}<span className="font-medium">{c.count}</span> {c.label}
+              {c.icon}<span className="font-medium">{c.count}</span> {c.key === 'tasks' ? t('archived.tabTasks') : t('archived.tabProjects')}
             </button>
           ))}
         </div>
@@ -159,7 +161,7 @@ export function ArchivedPage() {
               onClick={() => setTab(c.key)}
               className={cn('px-3 py-1.5 text-xs transition-colors', tab === c.key ? 'bg-accent/15 text-accent' : 'text-fg-muted hover:text-fg')}
             >
-              {c.label === 'tasks' ? 'Tasks' : 'Projects'} ({c.count})
+              {c.key === 'tasks' ? t('archived.tabTasks') : t('archived.tabProjects')} ({c.count})
             </button>
           ))}
         </div>
@@ -168,7 +170,7 @@ export function ArchivedPage() {
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm kiếm..."
+            placeholder={t('filter.searchPlaceholder')}
             className="h-8 w-56 pl-8 pr-3 rounded-lg border border-border bg-bg-elevated text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
@@ -179,33 +181,33 @@ export function ArchivedPage() {
           <div className="space-y-2">{[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}</div>
         ) : tab === 'tasks' ? (
           filteredTasks.length === 0 ? (
-            <EmptyState icon={<Archive className="w-12 h-12" />} title="Chưa có task nào được lưu trữ" description="Lưu trữ task từ menu ⋯ trong chi tiết task." />
+            <EmptyState icon={<Archive className="w-12 h-12" />} title={t('archived.emptyTasksTitle')} description={t('archived.emptyTasksDesc')} />
           ) : (
-            <Table head={['Task', 'Trạng thái', 'Assignee', 'Cột / Sprint', 'Lưu trữ', '']}>
-              {filteredTasks.map((t) => (
-                <tr key={t.id} className="border-t border-border hover:bg-bg-subtle/40">
+            <Table head={['Task', t('archived.colStatus'), t('filter.assignee'), t('archived.colColumnSprint'), t('archived.colArchived'), '']}>
+              {filteredTasks.map((task) => (
+                <tr key={task.id} className="border-t border-border hover:bg-bg-subtle/40">
                   <td className="px-4 py-2.5">
-                    <button onClick={() => setOpenTaskId(t.id)} className="flex items-center gap-2 min-w-0 text-left group">
-                      {typeIcon(t.type)}
-                      <span className="text-xs font-mono text-fg-subtle shrink-0">{projectKey}-{t.taskNumber ?? '—'}</span>
-                      <span className="font-medium text-fg truncate group-hover:text-accent transition-colors">{t.title}</span>
+                    <button onClick={() => setOpenTaskId(task.id)} className="flex items-center gap-2 min-w-0 text-left group">
+                      {typeIcon(task.type)}
+                      <span className="text-xs font-mono text-fg-subtle shrink-0">{projectKey}-{task.taskNumber ?? '—'}</span>
+                      <span className="font-medium text-fg truncate group-hover:text-accent transition-colors">{task.title}</span>
                     </button>
                   </td>
-                  <td className="px-4 py-2.5"><span className="inline-flex rounded-full bg-bg-subtle px-2 py-0.5 text-xs text-fg-muted">{t.status}</span></td>
+                  <td className="px-4 py-2.5"><span className="inline-flex rounded-full bg-bg-subtle px-2 py-0.5 text-xs text-fg-muted">{t(`status.${task.status}`, { defaultValue: task.status })}</span></td>
                   <td className="px-4 py-2.5">
-                    {t.assignee ? (
-                      <div className="flex items-center gap-2"><Avatar name={t.assignee.fullName} avatarUrl={t.assignee.avatarUrl} size="xs" /><span className="text-fg text-xs truncate">{t.assignee.fullName}</span></div>
-                    ) : <span className="text-fg-subtle text-xs">Unassigned</span>}
+                    {task.assignee ? (
+                      <div className="flex items-center gap-2"><Avatar name={task.assignee.fullName} avatarUrl={task.assignee.avatarUrl} size="xs" /><span className="text-fg text-xs truncate">{task.assignee.fullName}</span></div>
+                    ) : <span className="text-fg-subtle text-xs">{t('archived.unassigned')}</span>}
                   </td>
                   <td className="px-4 py-2.5 text-xs text-fg-muted">
-                    {t.columnName && <span className="inline-flex rounded bg-bg-subtle px-1.5 py-0.5 mr-1">{t.columnName}</span>}
-                    {t.sprintName && <span className="inline-flex rounded bg-bg-subtle px-1.5 py-0.5">{t.sprintName}</span>}
+                    {task.columnName && <span className="inline-flex rounded bg-bg-subtle px-1.5 py-0.5 mr-1">{task.columnName}</span>}
+                    {task.sprintName && <span className="inline-flex rounded bg-bg-subtle px-1.5 py-0.5">{task.sprintName}</span>}
                   </td>
-                  <td className="px-4 py-2.5"><ArchivedMeta at={t.archivedAt} by={t.archivedBy} /></td>
+                  <td className="px-4 py-2.5"><ArchivedMeta at={task.archivedAt} by={task.archivedBy} /></td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap">
                     <div className="inline-flex items-center gap-1">
-                      <Button variant="secondary" size="sm" onClick={() => restoreTask(t)}><ArchiveRestore className="w-3.5 h-3.5" /> Khôi phục</Button>
-                      <button onClick={() => setDeleteTask(t)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title="Xóa vĩnh viễn"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <Button variant="secondary" size="sm" onClick={() => restoreTask(task)}><ArchiveRestore className="w-3.5 h-3.5" /> {t('archived.restore')}</Button>
+                      <button onClick={() => setDeleteTask(task)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title={t('archived.deletePermanent')}><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -214,9 +216,9 @@ export function ArchivedPage() {
           )
         ) : (
           filteredProjects.length === 0 ? (
-            <EmptyState icon={<Archive className="w-12 h-12" />} title="Chưa có dự án nào được lưu trữ" description="Lưu trữ dự án trong trang Project Management." />
+            <EmptyState icon={<Archive className="w-12 h-12" />} title={t('archived.emptyProjectsTitle')} description={t('archived.emptyProjectsDesc')} />
           ) : (
-            <Table head={['Dự án', 'Quy mô', 'Lưu trữ', '']}>
+            <Table head={[t('archived.colProject'), t('archived.colSize'), t('archived.colArchived'), '']}>
               {filteredProjects.map((p) => (
                 <tr key={p.id} className="border-t border-border hover:bg-bg-subtle/40">
                   <td className="px-4 py-2.5">
@@ -225,12 +227,12 @@ export function ArchivedPage() {
                       <div className="min-w-0"><p className="font-medium text-fg truncate">{p.name}</p><p className="text-xs text-fg-subtle font-mono truncate">{p.slug}</p></div>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-xs text-fg-muted whitespace-nowrap">{p.memberCount} thành viên · {p.taskCount} task</td>
+                  <td className="px-4 py-2.5 text-xs text-fg-muted whitespace-nowrap">{t('archived.membersTasksCount', { members: p.memberCount, tasks: p.taskCount })}</td>
                   <td className="px-4 py-2.5"><ArchivedMeta at={p.archivedAt} by={p.archivedBy} /></td>
                   <td className="px-4 py-2.5 text-right whitespace-nowrap">
                     <div className="inline-flex items-center gap-1">
-                      <Button variant="secondary" size="sm" onClick={() => restoreProject(p)}><ArchiveRestore className="w-3.5 h-3.5" /> Khôi phục</Button>
-                      <button onClick={() => setDeleteProject(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title="Xóa vĩnh viễn"><Trash2 className="w-3.5 h-3.5" /></button>
+                      <Button variant="secondary" size="sm" onClick={() => restoreProject(p)}><ArchiveRestore className="w-3.5 h-3.5" /> {t('archived.restore')}</Button>
+                      <button onClick={() => setDeleteProject(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title={t('archived.deletePermanent')}><Trash2 className="w-3.5 h-3.5" /></button>
                     </div>
                   </td>
                 </tr>
@@ -244,23 +246,24 @@ export function ArchivedPage() {
         open={!!deleteTask}
         onClose={() => setDeleteTask(null)}
         onConfirm={() => deleteTask && removeTask(deleteTask.id)}
-        title="Xóa vĩnh viễn task"
-        message={deleteTask ? <>Xóa vĩnh viễn task <span className="font-medium text-fg">"{deleteTask.title}"</span>? Hành động này <span className="font-medium text-danger">không thể hoàn tác</span>.</> : null}
-        confirmLabel="Xóa vĩnh viễn"
+        title={t('archived.deleteTaskTitle')}
+        message={deleteTask ? t('archived.deleteTaskMsg', { title: deleteTask.title }) : null}
+        confirmLabel={t('archived.deletePermanent')}
         loading={deletingTask}
       />
       <ConfirmDialog
         open={!!deleteProject}
         onClose={() => setDeleteProject(null)}
         onConfirm={() => deleteProject && removeProject(deleteProject.id)}
-        title="Xóa vĩnh viễn dự án"
-        message={deleteProject ? <>Xóa vĩnh viễn dự án <span className="font-medium text-fg">"{deleteProject.name}"</span> cùng toàn bộ dữ liệu? <span className="font-medium text-danger">Không thể hoàn tác</span>.</> : null}
-        confirmLabel="Xóa vĩnh viễn"
+        title={t('archived.deleteProjectTitle')}
+        message={deleteProject ? t('archived.deleteProjectMsg', { name: deleteProject.name }) : null}
+        confirmLabel={t('archived.deletePermanent')}
         requireText={deleteProject?.slug}
         loading={deletingProject}
       />
 
       <TaskDetailModal
+        task={null}
         taskId={openTaskId ?? undefined}
         projectId={projectId}
         projectKey={projectKey}

@@ -134,7 +134,7 @@ describe('BoardView', () => {
     renderBoard()
     await waitFor(() => {
       // AddColumnCard renders "Thêm column" button
-      expect(screen.getByText(/thêm column/i)).toBeInTheDocument()
+      expect(screen.getByText(/add column/i)).toBeInTheDocument()
     })
   })
 
@@ -149,7 +149,7 @@ describe('BoardView', () => {
   it('renders filter bar', async () => {
     renderBoard()
     await waitFor(() => {
-      expect(screen.getByPlaceholderText(/tìm task/i)).toBeInTheDocument()
+      expect(screen.getByPlaceholderText(/search tasks/i)).toBeInTheDocument()
     })
   })
 

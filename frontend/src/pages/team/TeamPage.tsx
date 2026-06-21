@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, User, Briefcase, Search, Check, Trash2 } from 'lucide-react'
@@ -12,13 +13,14 @@ import { useDebounce } from '@/hooks/useDebounce'
 import { formatDate, cn } from '@/lib/utils'
 
 const WORKLOAD_OPTIONS = [
-  { value: '', label: 'Tất cả workload' },
-  { value: 'overloaded', label: 'Quá tải (>5 tasks)' },
-  { value: 'normal', label: 'Bình thường (1-5)' },
-  { value: 'free', label: 'Rảnh (0 task)' },
+  { value: '', key: 'filter.allWorkload' },
+  { value: 'overloaded', key: 'filter.workloadOverloaded' },
+  { value: 'normal', key: 'filter.workloadNormal' },
+  { value: 'free', key: 'filter.workloadFree' },
 ]
 
 export function TeamPage() {
+  const { t } = useTranslation()
   const { projectId = '' } = useParams<{ projectId: string }>()
   const qc = useQueryClient()
   const toast = useToast()
@@ -43,10 +45,10 @@ export function TeamPage() {
     mutationFn: (userId: string) => membersApi.remove(projectId, userId),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['members', projectId] })
-      toast.success('Đã xóa thành viên khỏi dự án')
+      toast.success(t('team.removed'))
       setRemoveTarget(null)
     },
-    onError: () => toast.error('Không thể xóa thành viên'),
+    onError: () => toast.error(t('team.removeFailed')),
   })
 
   return (
@@ -54,8 +56,8 @@ export function TeamPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-fg">Thành viên dự án</h1>
-          <p className="text-xs text-fg-muted mt-0.5">{members.length} thành viên · Quản lý tài khoản tại trang Quản lý người dùng</p>
+          <h1 className="text-base font-semibold text-fg">{t('pages.team')}</h1>
+          <p className="text-xs text-fg-muted mt-0.5">{t('pages.teamSubtitle', { count: members.length })}</p>
         </div>
         <div className="flex items-center gap-2">
           <select
@@ -63,11 +65,11 @@ export function TeamPage() {
             onChange={(e) => setWorkloadFilter(e.target.value)}
             className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
           >
-            {WORKLOAD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {WORKLOAD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{t(o.key)}</option>)}
           </select>
           {canManageMembers && (
             <Button variant="primary" size="sm" onClick={() => setShowInvite(true)}>
-              <UserPlus className="w-4 h-4" /> Mời thành viên
+              <UserPlus className="w-4 h-4" /> {t('team.invite')}
             </Button>
           )}
         </div>
@@ -90,8 +92,8 @@ export function TeamPage() {
         ) : members.length === 0 ? (
           <EmptyState
             icon={<User className="w-12 h-12" />}
-            title="Không có thành viên nào"
-            action={canManageMembers ? <Button variant="primary" size="sm" onClick={() => setShowInvite(true)}><UserPlus className="w-4 h-4" /> Mời ngay</Button> : undefined}
+            title={t('team.emptyTitle')}
+            action={canManageMembers ? <Button variant="primary" size="sm" onClick={() => setShowInvite(true)}><UserPlus className="w-4 h-4" /> {t('team.inviteNow')}</Button> : undefined}
           />
         ) : (
           <div className="rounded-card border border-border overflow-x-auto scrollbar-thin">
@@ -104,10 +106,10 @@ export function TeamPage() {
               </colgroup>
               <thead>
                 <tr className="bg-bg-subtle text-left text-xs text-fg-muted">
-                  <th className="px-4 py-2.5 font-semibold">Thành viên</th>
-                  <th className="px-4 py-2.5 font-semibold">Khối lượng</th>
-                  <th className="px-4 py-2.5 font-semibold">Tham gia</th>
-                  <th className="px-4 py-2.5 font-semibold text-right">Thao tác</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('team.colMember')}</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('team.colWorkload')}</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('team.colJoined')}</th>
+                  <th className="px-4 py-2.5 font-semibold text-right">{t('team.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -127,7 +129,7 @@ export function TeamPage() {
                     <td className="px-4 py-2.5">
                       <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-bg-subtle text-xs text-fg-muted">
                         <Briefcase className="w-3.5 h-3.5 text-fg-subtle" />
-                        {m.taskCount} tasks
+                        {t('team.tasksCount', { count: m.taskCount })}
                       </span>
                     </td>
                     {/* Joined */}
@@ -140,7 +142,7 @@ export function TeamPage() {
                         <button
                           onClick={() => setRemoveTarget(m)}
                           className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors"
-                          title="Xóa khỏi dự án"
+                          title={t('team.removeFromProject')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -164,9 +166,9 @@ export function TeamPage() {
         open={!!removeTarget}
         onClose={() => setRemoveTarget(null)}
         onConfirm={() => removeTarget && remove(removeTarget.userId)}
-        title="Xóa thành viên"
-        message={removeTarget ? <>Xóa <span className="font-medium text-fg">{removeTarget.user.fullName}</span> khỏi dự án? Họ sẽ mất quyền truy cập dự án này.</> : null}
-        confirmLabel="Xóa khỏi dự án"
+        title={t('team.removeTitle')}
+        message={removeTarget ? t('team.removeConfirmMsg', { name: removeTarget.user.fullName }) : null}
+        confirmLabel={t('team.removeFromProject')}
         loading={removing}
       />
     </div>
@@ -174,6 +176,7 @@ export function TeamPage() {
 }
 
 function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: string; onClose: () => void }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
@@ -231,8 +234,8 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
       try { await new Promise<void>((res, rej) => addMember(id, { onSuccess: () => res(), onError: rej })); ok++ }
       catch { /* continue adding the remaining selected users */ }
     }
-    if (ok > 0) toast.success(`Đã thêm ${ok} thành viên`)
-    if (ok < ids.length) toast.error(`${ids.length - ok} người không thể thêm`)
+    if (ok > 0) toast.success(t('team.added', { count: ok }))
+    if (ok < ids.length) toast.error(t('team.addFailed', { count: ids.length - ok }))
     handleClose()
   }
 
@@ -245,7 +248,7 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
   const allSelected = availableUsers.length > 0 && selected.size === availableUsers.length
 
   return (
-    <Modal open={open} onClose={handleClose} title="Mời thành viên vào dự án" size="md">
+    <Modal open={open} onClose={handleClose} title={t('team.inviteModalTitle')} size="md">
       <div className="flex flex-col" style={{ maxHeight: '70vh' }}>
         {/* Search */}
         <div className="px-5 pt-4 pb-3 border-b border-border shrink-0">
@@ -254,7 +257,7 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm kiếm theo tên hoặc email..."
+              placeholder={t('filter.searchNameEmail')}
               className="w-full h-9 pl-9 pr-3 rounded-lg border border-border bg-bg-elevated text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent"
             />
             {isFetching && (
@@ -271,7 +274,7 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
             <div className="flex flex-col items-center justify-center py-10 text-center px-5">
               <User className="w-8 h-8 text-fg-subtle mb-2" />
               <p className="text-sm text-fg-muted">
-                {search ? 'Không tìm thấy user nào' : 'Tất cả user đã là thành viên'}
+                {search ? t('team.noUsersFound') : t('team.allAreMembers')}
               </p>
             </div>
           ) : (
@@ -288,7 +291,7 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
                   {allSelected && <Check className="w-2.5 h-2.5 text-white" />}
                 </div>
                 <span className="text-xs text-fg-muted font-medium">
-                  Chọn tất cả ({availableUsers.length})
+                  {t('team.selectAll', { count: availableUsers.length })}
                 </span>
               </button>
 
@@ -306,7 +309,7 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border shrink-0 flex items-center justify-end gap-3">
-          <Button variant="ghost" size="sm" onClick={handleClose}>Hủy</Button>
+          <Button variant="ghost" size="sm" onClick={handleClose}>{t('common.cancel')}</Button>
           <Button
             variant="primary"
             size="sm"
@@ -314,7 +317,7 @@ function InviteModal({ open, projectId, onClose }: { open: boolean; projectId: s
             disabled={selected.size === 0}
             onClick={handleSubmit}
           >
-            Mời {selected.size > 0 ? `(${selected.size})` : ''}
+            {t('team.inviteBtn')} {selected.size > 0 ? `(${selected.size})` : ''}
           </Button>
         </div>
       </div>

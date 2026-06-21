@@ -9,7 +9,7 @@ export interface AppUser {
   roleId: string | null
   isActive: boolean
   createdAt: string
-  language: 'vi' | 'en'
+  language: import('@/i18n').AppLanguage
   appearance: 'light' | 'midnight' | 'mint'
   timezone: import('@/lib/timezones').UserTimezone
 }
@@ -27,7 +27,7 @@ export interface UpdateUserDto {
   role?: string
   roleId?: string | null
   isActive?: boolean
-  language?: 'vi' | 'en'
+  language?: import('@/i18n').AppLanguage
   appearance?: 'light' | 'midnight' | 'mint'
   timezone?: import('@/lib/timezones').UserTimezone
 }

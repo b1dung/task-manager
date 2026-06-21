@@ -2,8 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { formatDate, formatRelative, truncate, getInitials } from '@/lib/utils'
 
 describe('formatDate', () => {
-  it('formats ISO string to DD/MM/YYYY', () => {
-    expect(formatDate('2026-06-15T00:00:00.000Z')).toMatch(/15\/06\/2026/)
+  it('formats ISO string using the default English locale', () => {
+    expect(formatDate('2026-06-15T00:00:00.000Z')).toMatch(/06\/15\/2026/)
   })
 
   it('returns — for null', () => {
@@ -16,24 +16,24 @@ describe('formatDate', () => {
 })
 
 describe('formatRelative', () => {
-  it('returns "vừa xong" for very recent dates', () => {
+  it('returns "just now" for very recent dates', () => {
     const now = new Date().toISOString()
-    expect(formatRelative(now)).toBe('vừa xong')
+    expect(formatRelative(now)).toBe('just now')
   })
 
-  it('returns phút trước for minutes ago', () => {
+  it('returns minutes ago', () => {
     const twoMinsAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
-    expect(formatRelative(twoMinsAgo)).toBe('2 phút trước')
+    expect(formatRelative(twoMinsAgo)).toBe('2 minutes ago')
   })
 
-  it('returns giờ trước for hours ago', () => {
+  it('returns hours ago', () => {
     const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-    expect(formatRelative(twoHoursAgo)).toBe('2 giờ trước')
+    expect(formatRelative(twoHoursAgo)).toBe('2 hours ago')
   })
 
-  it('returns ngày trước for days ago', () => {
+  it('returns days ago', () => {
     const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-    expect(formatRelative(threeDaysAgo)).toBe('3 ngày trước')
+    expect(formatRelative(threeDaysAgo)).toBe('3 days ago')
   })
 })
 

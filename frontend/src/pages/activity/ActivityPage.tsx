@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { format, subDays } from 'date-fns'
@@ -28,6 +29,7 @@ type Period = 'week' | 'month' | 'quarter' | 'year' | 'custom'
 const PERIOD_DAYS: Record<Exclude<Period, 'custom'>, number> = { week: 7, month: 30, quarter: 90, year: 365 }
 
 export function ActivityPage() {
+  const { t } = useTranslation()
   const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const { projectId = '' } = useParams<{ projectId: string }>()
   const { activity, setActivityFilter, clearActivityFilters } = useFilterStore()
@@ -89,9 +91,9 @@ export function ActivityPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
-        <h1 className="text-base font-semibold text-fg">Activity Log</h1>
+        <h1 className="text-base font-semibold text-fg">{t('pages.activity')}</h1>
         <Button variant="outline" size="sm" onClick={handleExport}>
-          <Download className="w-4 h-4" /> Export CSV
+          <Download className="w-4 h-4" /> {t('activity.exportCsv')}
         </Button>
       </div>
 
@@ -103,9 +105,9 @@ export function ActivityPage() {
             <button
               key={p}
               onClick={() => applyPeriod(p)}
-              className={`px-3 py-1.5 text-xs font-medium capitalize transition-colors ${period === p ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-subtle'}`}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors ${period === p ? 'bg-accent text-white' : 'text-fg-muted hover:bg-bg-subtle'}`}
             >
-              {p}
+              {t(`activity.period.${p}`)}
             </button>
           ))}
         </div>
@@ -132,30 +134,30 @@ export function ActivityPage() {
           onChange={(e) => setUserId(e.target.value)}
           className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
         >
-          <option value="">All users</option>
+          <option value="">{t('activity.allUsers')}</option>
           {members.map((m) => <option key={m.userId} value={m.userId}>{m.user.fullName}</option>)}
         </select>
 
         <select
           value={action}
           onChange={(e) => setAction(e.target.value)}
-          className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg capitalize focus:outline-none focus:ring-2 focus:ring-accent"
+          className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
         >
-          <option value="">All actions</option>
-          {ACTIONS.map((a) => <option key={a} value={a}>{a.replace('_', ' ')}</option>)}
+          <option value="">{t('activity.allActions')}</option>
+          {ACTIONS.map((a) => <option key={a} value={a}>{t(`activity.actions.${a}`)}</option>)}
         </select>
 
         <select
           value={entityType}
           onChange={(e) => setEntityType(e.target.value)}
-          className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg capitalize focus:outline-none focus:ring-2 focus:ring-accent"
+          className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
         >
-          <option value="">All types</option>
-          {ENTITY_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+          <option value="">{t('filter.allTypes')}</option>
+          {ENTITY_TYPES.map((et) => <option key={et} value={et}>{t(`activity.entities.${et}`)}</option>)}
         </select>
 
-        <Button variant="primary" size="sm" onClick={applyFilters}>Apply</Button>
-        <Button variant="ghost" size="sm" onClick={resetFilters}>Reset</Button>
+        <Button variant="primary" size="sm" onClick={applyFilters}>{t('filter.apply')}</Button>
+        <Button variant="ghost" size="sm" onClick={resetFilters}>{t('filter.reset')}</Button>
       </div>
 
       {/* Timeline */}
@@ -165,7 +167,7 @@ export function ActivityPage() {
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-14 rounded-lg" />)}
           </div>
         ) : logs.length === 0 ? (
-          <EmptyState icon={<Activity className="w-12 h-12" />} title="Không có hoạt động nào" />
+          <EmptyState icon={<Activity className="w-12 h-12" />} title={t('activity.empty')} />
         ) : (
           <div className="relative pl-6">
             {/* Vertical line */}
@@ -184,9 +186,9 @@ export function ActivityPage() {
                             {member?.user.fullName ?? log.userId.slice(0, 8)}
                           </span>
                           <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${ACTION_COLORS[log.action] ? `bg-${ACTION_COLORS[log.action]}/10` : ''} text-fg-muted`}>
-                            {log.action}
+                            {t(`activity.actions.${log.action}`, { defaultValue: log.action })}
                           </span>
-                          <span className="text-xs text-fg-subtle capitalize">{log.entityType}</span>
+                          <span className="text-xs text-fg-subtle">{t(`activity.entities.${log.entityType}`, { defaultValue: log.entityType })}</span>
                         </div>
                         <span className="text-xs text-fg-subtle shrink-0" title={formatRelative(log.createdAt, timezone)}>
                           {formatZonedDateTime(log.createdAt, timezone)}
@@ -208,11 +210,11 @@ export function ActivityPage() {
         {/* Pagination */}
         {data && (
           <div className="flex justify-center gap-2 mt-6">
-            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>← Trước</Button>
+            <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t('activity.prev')}</Button>
             <span className="flex items-center text-xs text-fg-muted px-3">
-              Trang {page}
+              {t('activity.page', { page })}
             </span>
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)}>Tiếp →</Button>
+            <Button variant="outline" size="sm" onClick={() => setPage((p) => p + 1)}>{t('activity.next')}</Button>
           </div>
         )}
       </div>

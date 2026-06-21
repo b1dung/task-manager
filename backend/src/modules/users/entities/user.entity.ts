@@ -25,8 +25,8 @@ export class User {
   @Column({ name: 'avatar_url', nullable: true, type: 'varchar' })
   avatarUrl!: string | null;
 
-  @Column({ type: 'varchar', length: 5, default: 'vi' })
-  language!: 'vi' | 'en';
+  @Column({ type: 'varchar', length: 5, default: 'en' })
+  language!: 'vi' | 'en' | 'ja';
 
   @Column({ type: 'varchar', length: 16, default: 'midnight' })
   appearance!: 'light' | 'midnight' | 'mint';

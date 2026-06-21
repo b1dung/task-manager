@@ -9,20 +9,21 @@ import {useFilterStore} from '@/stores/useFilterStore'
 import {useDebounce} from '@/hooks/useDebounce'
 import {Avatar} from '@/components/ui'
 import {cn} from '@/lib/utils'
+import {useTranslation} from 'react-i18next'
 
 const PRIORITY_OPTIONS = [
-    {value: 'urgent', label: 'Urgent', svg: '/priority/highest_new.svg'},
-    {value: 'high', label: 'High', svg: '/priority/high_new.svg'},
-    {value: 'medium', label: 'Medium', svg: '/priority/medium_new.svg'},
-    {value: 'low', label: 'Low', svg: '/priority/low_new.svg'},
-    {value: 'lowest', label: 'Lowest', svg: '/priority/lowest_new.svg'},
+    {value: 'urgent', svg: '/priority/highest_new.svg'},
+    {value: 'high', svg: '/priority/high_new.svg'},
+    {value: 'medium', svg: '/priority/medium_new.svg'},
+    {value: 'low', svg: '/priority/low_new.svg'},
+    {value: 'lowest', svg: '/priority/lowest_new.svg'},
 ]
 
 const DUE_OPTIONS = [
-    {value: 'overdue', label: 'Quá hạn'},
-    {value: 'today', label: 'Hôm nay'},
-    {value: 'this_week', label: 'Tuần này'},
-    {value: 'no_due_date', label: 'Không có hạn'},
+    {value: 'overdue', key: 'filter.overdue'},
+    {value: 'today', key: 'filter.today'},
+    {value: 'this_week', key: 'filter.thisWeek'},
+    {value: 'no_due_date', key: 'filter.noDueDate'},
 ]
 
 interface FilterBarProps {
@@ -30,6 +31,7 @@ interface FilterBarProps {
 }
 
 export function FilterBar({projectId}: FilterBarProps) {
+    const {t} = useTranslation()
     const {board, setBoardFilter, clearBoardFilters} = useFilterStore()
     const [q, setQ] = useState(board.q ?? '')
     const [open, setOpen] = useState(false)
@@ -86,7 +88,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                     <input
                         value={q}
                         onChange={(e) => setQ(e.target.value)}
-                        placeholder="Tìm task..."
+                        placeholder={t('filter.searchTasks')}
                         className="w-full h-8 pl-8 pr-3 rounded-lg border border-border bg-bg-elevated text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent"
                     />
                     {q && (
@@ -108,7 +110,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                     )}
                 >
                     <SlidersHorizontal className="w-3.5 h-3.5"/>
-                    Filter
+                    {t('filter.button')}
                     {activeCount > 0 && (
                         <span
                             className="flex items-center justify-center w-4 h-4 rounded-full bg-accent text-white text-[10px] font-bold leading-none">
@@ -124,7 +126,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                         className="flex items-center gap-1 h-8 px-2.5 rounded-lg border border-border text-sm text-fg-muted hover:text-fg hover:border-border-bright transition-colors"
                     >
                         <X className="w-3.5 h-3.5"/>
-                        Xóa
+                        {t('filter.clear')}
                     </button>
                 )}
             </div>
@@ -147,7 +149,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                         <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
                             <div className="flex items-center gap-2">
                                 <SlidersHorizontal className="w-4 h-4 text-fg-muted"/>
-                                <span className="text-sm font-semibold text-fg">Bộ lọc</span>
+                                <span className="text-sm font-semibold text-fg">{t('filter.title')}</span>
                                 {activeCount > 0 && (
                                     <span
                                         className="flex items-center justify-center w-5 h-5 rounded-full bg-accent text-white text-[10px] font-bold">
@@ -161,7 +163,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                                         onClick={clearBoardFilters}
                                         className="text-xs text-fg-muted hover:text-danger transition-colors px-2 py-1 rounded-lg hover:bg-bg-subtle"
                                     >
-                                        Xóa tất cả
+                                        {t('filter.clearAll')}
                                     </button>
                                 )}
                                 <button
@@ -178,7 +180,7 @@ export function FilterBar({projectId}: FilterBarProps) {
 
                             {/* Assignees */}
                             {members.length > 0 && (
-                                <FilterSection label="Assignee">
+                                <FilterSection label={t('filter.assignee')}>
                                     <div className="flex flex-wrap gap-2">
                                         {members.map((m) => {
                                             const active = board.assigneeId?.includes(m.userId)
@@ -204,10 +206,11 @@ export function FilterBar({projectId}: FilterBarProps) {
                             )}
 
                             {/* Priority */}
-                            <FilterSection label="Priority">
+                            <FilterSection label={t('filter.priority')}>
                                 <div className="flex flex-wrap gap-2">
                                     {PRIORITY_OPTIONS.map((p) => {
                                         const active = board.priority?.includes(p.value)
+                                        const label = t(`priority.${p.value}`)
                                         return (
                                             <button
                                                 key={p.value}
@@ -219,8 +222,8 @@ export function FilterBar({projectId}: FilterBarProps) {
                                                         : 'border-border text-fg-muted hover:border-border-bright hover:text-fg',
                                                 )}
                                             >
-                                                <img src={p.svg} alt={p.label} width={13} height={13}/>
-                                                {p.label}
+                                                <img src={p.svg} alt={label} width={13} height={13}/>
+                                                {label}
                                             </button>
                                         )
                                     })}
@@ -229,7 +232,7 @@ export function FilterBar({projectId}: FilterBarProps) {
 
                             {/* Labels */}
                             {labels.length > 0 && (
-                                <FilterSection label="Labels">
+                                <FilterSection label={t('filter.labels')}>
                                     <div className="flex flex-wrap gap-2">
                                         {labels.map((l) => {
                                             const active = board.labelId?.includes(l.id)
@@ -257,19 +260,19 @@ export function FilterBar({projectId}: FilterBarProps) {
                             {/* Sprint + Due — 2 cột */}
                             <div className="grid grid-cols-2 gap-5">
                                 {sprints.length > 0 && (
-                                    <FilterSection label="Sprint">
+                                    <FilterSection label={t('filter.sprint')}>
                                         <select
                                             value={board.sprintId ?? ''}
                                             onChange={(e) => setBoardFilter({sprintId: e.target.value || undefined})}
                                             className="w-full h-8 rounded-lg border border-border bg-bg-elevated px-3 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-accent"
                                         >
-                                            <option value="">Tất cả</option>
+                                            <option value="">{t('common.all')}</option>
                                             {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
                                         </select>
                                     </FilterSection>
                                 )}
 
-                                <FilterSection label="Due date">
+                                <FilterSection label={t('filter.dueDate')}>
                                     <div className="flex flex-wrap gap-1.5">
                                         {DUE_OPTIONS.map((o) => {
                                             const active = board.due === o.value
@@ -284,7 +287,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                                                             : 'border-border text-fg-muted hover:border-border-bright hover:text-fg',
                                                     )}
                                                 >
-                                                    {o.label}
+                                                    {t(o.key)}
                                                 </button>
                                             )
                                         })}
@@ -293,10 +296,10 @@ export function FilterBar({projectId}: FilterBarProps) {
                             </div>
 
                             {/* Created date range */}
-                            <FilterSection label="Created">
+                            <FilterSection label={t('filter.created')}>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <p className="text-[11px] text-fg-subtle mb-1.5">Từ ngày</p>
+                                        <p className="text-[11px] text-fg-subtle mb-1.5">{t('filter.fromDate')}</p>
                                         <input
                                             type="date"
                                             value={board.createdFrom ?? ''}
@@ -305,7 +308,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                                         />
                                     </div>
                                     <div>
-                                        <p className="text-[11px] text-fg-subtle mb-1.5">Đến ngày</p>
+                                        <p className="text-[11px] text-fg-subtle mb-1.5">{t('filter.toDate')}</p>
                                         <input
                                             type="date"
                                             value={board.createdTo ?? ''}
@@ -319,7 +322,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                                         onClick={() => setBoardFilter({createdFrom: undefined, createdTo: undefined})}
                                         className="mt-1.5 text-xs text-fg-subtle hover:text-danger transition-colors flex items-center gap-1"
                                     >
-                                        <X className="w-3 h-3"/> Xóa ngày
+                                        <X className="w-3 h-3"/> {t('filter.clearDates')}
                                     </button>
                                 )}
                             </FilterSection>
@@ -332,7 +335,7 @@ export function FilterBar({projectId}: FilterBarProps) {
                                 onClick={() => setOpen(false)}
                                 className="h-8 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent/90 transition-colors"
                             >
-                                Áp dụng
+                                {t('filter.apply')}
                             </button>
                         </div>
                     </div>

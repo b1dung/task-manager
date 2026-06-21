@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -9,18 +9,20 @@ import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Button, Input, Modal } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
+import { useTranslation } from 'react-i18next'
 
-const schema = z.object({
-  email: z.string().email('Email không hợp lệ'),
-  password: z.string().min(6, 'Mật khẩu ít nhất 6 ký tự'),
-})
-type FormData = z.infer<typeof schema>
+type FormData = { email: string; password: string }
 
 function errorStatus(err: unknown): number | undefined {
   return (err as { response?: { status?: number } })?.response?.status
 }
 
 export function LoginPage() {
+  const { t } = useTranslation()
+  const schema = useMemo(() => z.object({
+    email: z.string().email(t('auth.invalidEmail')),
+    password: z.string().min(6, t('auth.passwordMin6')),
+  }), [t])
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
   const toast = useToast()
@@ -40,7 +42,7 @@ export function LoginPage() {
     onError: (err) => {
       // Account exists but is not yet approved → show a blocking notice.
       if (errorStatus(err) === 403) setShowPending(true)
-      else toast.error('Email hoặc mật khẩu không đúng')
+      else toast.error(t('auth.invalidCredentials'))
     },
   })
 
@@ -51,14 +53,14 @@ export function LoginPage() {
           <div className="mx-auto w-10 h-10 rounded-xl bg-accent flex items-center justify-center text-white font-bold mb-4">
             TB
           </div>
-          <h1 className="text-2xl font-semibold text-fg">Đăng nhập</h1>
-          <p className="mt-1 text-sm text-fg-muted">Chào mừng trở lại!</p>
+          <h1 className="text-2xl font-semibold text-fg">{t('auth.login')}</h1>
+          <p className="mt-1 text-sm text-fg-muted">{t('auth.welcomeBack')}</p>
         </div>
 
         <form onSubmit={handleSubmit((d) => mutate(d))} className="space-y-4">
           <Input
             {...register('email')}
-            label="Email"
+            label={t('auth.email')}
             type="email"
             placeholder="you@example.com"
             error={errors.email?.message}
@@ -66,39 +68,39 @@ export function LoginPage() {
           />
           <Input
             {...register('password')}
-            label="Mật khẩu"
+            label={t('auth.password')}
             type="password"
             placeholder="••••••••"
             error={errors.password?.message}
             autoComplete="current-password"
           />
           <Button type="submit" variant="primary" className="w-full" loading={isPending}>
-            Đăng nhập
+            {t('auth.login')}
           </Button>
         </form>
 
         <p className="text-center text-sm text-fg-muted">
-          Chưa có tài khoản?{' '}
+          {t('auth.noAccount')}{' '}
           <Link to="/register" className="text-accent hover:underline">
-            Đăng ký
+            {t('auth.register')}
           </Link>
         </p>
       </div>
 
-      <Modal open={showPending} onClose={() => setShowPending(false)} title="Tài khoản đang chờ duyệt" size="sm">
+      <Modal open={showPending} onClose={() => setShowPending(false)} title={t('auth.pendingTitle')} size="sm">
         <div className="px-5 py-5 flex flex-col items-center text-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-full bg-warning/15 text-warning">
             <Clock className="w-6 h-6" />
           </div>
           <p className="text-sm text-fg">
-            Tài khoản của bạn đã được tạo nhưng <span className="font-medium">đang chờ quản trị viên duyệt &amp; phân quyền</span>.
+            {t('auth.pendingMessage')}
           </p>
           <p className="text-xs text-fg-muted">
-            Bạn sẽ đăng nhập được ngay sau khi được chấp nhận. Vui lòng liên hệ quản trị viên nếu cần gấp.
+            {t('auth.pendingHelp')}
           </p>
         </div>
         <div className="px-5 py-4 border-t border-border flex justify-center">
-          <Button variant="primary" size="sm" onClick={() => setShowPending(false)}>Đã hiểu</Button>
+          <Button variant="primary" size="sm" onClick={() => setShowPending(false)}>{t('common.understood')}</Button>
         </div>
       </Modal>
     </div>

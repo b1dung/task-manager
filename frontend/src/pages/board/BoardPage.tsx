@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams, useSearchParams } from 'react-router-dom'
 import {
   DndContext, DragOverlay,
@@ -57,6 +58,7 @@ function columnNameToStatus(name: string): string {
 }
 
 export function BoardPage() {
+  const { t } = useTranslation()
   const { projectId = '' } = useParams<{ projectId: string }>()
   const [searchParams, setSearchParams] = useSearchParams()
   const qc = useQueryClient()
@@ -183,21 +185,23 @@ export function BoardPage() {
   })
 
   const { mutate: addColumn } = useMutation({
-    mutationFn: (name: string) => columnsApi.create(projectId, { name }),
+    mutationFn: (input: { name: string; color: string }) =>
+      columnsApi.create(projectId, { name: input.name, color: input.color || undefined }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['columns', projectId] }),
-    onError: () => toast.error('Tạo column thất bại'),
+    onError: () => toast.error(t('board.createColumnFailed')),
   })
   const { mutate: editColumn } = useMutation({
-    mutationFn: (col: BoardColumn) => columnsApi.update(projectId, col.id, { name: col.name }),
+    mutationFn: (col: BoardColumn) =>
+      columnsApi.update(projectId, col.id, { name: col.name, color: col.color ?? '' }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['columns', projectId] }),
   })
   const { mutate: deleteColumn } = useMutation({
     mutationFn: (col: BoardColumn) => columnsApi.delete(projectId, col.id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['columns', projectId] })
-      toast.success('Đã xóa column')
+      toast.success(t('board.columnDeleted'))
     },
-    onError: () => toast.error('Không thể xóa column có task'),
+    onError: () => toast.error(t('board.deleteColumnFailed')),
   })
 
   const { mutate: reorderColumns } = useMutation({
@@ -213,7 +217,7 @@ export function BoardPage() {
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(['columns', projectId], ctx.prev)
-      toast.error('Sắp xếp cột thất bại')
+      toast.error(t('board.reorderColumnFailed'))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['columns', projectId] }),
   })
@@ -231,7 +235,7 @@ export function BoardPage() {
       if (preSnapshotRef.current) {
         qc.setQueryData(['tasks', projectId, filters], preSnapshotRef.current)
       }
-      toast.error('Di chuyển task thất bại')
+      toast.error(t('board.moveTaskFailed'))
     },
   })
 
@@ -311,9 +315,9 @@ export function BoardPage() {
           <button
             onClick={() => setReorderMode(true)}
             className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors shrink-0"
-            title="Sắp xếp lại cột"
+            title={t('board.reorderColumns')}
           >
-            <Menu className="w-4 h-4" /> Sắp xếp cột
+            <Menu className="w-4 h-4" /> {t('board.reorderColumnsBtn')}
           </button>
         )}
       </div>
@@ -392,6 +396,7 @@ function AddTaskModal({
 }: {
   open: boolean; projectId: string; column: BoardColumn | null; onClose: () => void
 }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const { register, handleSubmit, reset, control, formState: { errors } } = useForm<CreateTaskDto & { title: string }>({ defaultValues: { priority: 'medium', type: 'task' } })
@@ -400,30 +405,30 @@ function AddTaskModal({
     mutationFn: (dto: CreateTaskDto) => tasksApi.create(projectId, dto),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tasks', projectId] })
-      toast.success('Task đã được tạo')
+      toast.success(t('board.taskCreated'))
       reset()
       onClose()
     },
-    onError: () => toast.error('Tạo task thất bại'),
+    onError: () => toast.error(t('board.createTaskFailed')),
   })
 
   if (!column) return null
 
   return (
-    <Modal open={open} onClose={() => { reset(); onClose() }} title={`Thêm task vào "${column.name}"`} size="sm">
+    <Modal open={open} onClose={() => { reset(); onClose() }} title={t('board.addTaskTo', { column: column.name })} size="sm">
       <form
         onSubmit={handleSubmit((d) => mutate({ ...d, columnId: column.id }))}
         className="p-5 space-y-4"
       >
         <Input
-          {...register('title', { required: 'Nhập tiêu đề task' })}
-          label="Tiêu đề *"
+          {...register('title', { required: t('board.titleRequired') })}
+          label={`${t('board.titleLabel')} *`}
           placeholder="VD: Fix login bug"
           error={errors.title?.message}
           autoFocus
         />
         <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-fg-muted">Priority</span>
+          <span className="text-sm font-medium text-fg-muted">{t('filter.priority')}</span>
           <Controller
             name="priority"
             control={control}
@@ -440,8 +445,8 @@ function AddTaskModal({
                         : 'border-border text-fg-muted hover:border-border-bright hover:text-fg'
                     }`}
                   >
-                    <img src={p.svg} alt={p.label} width={13} height={13} />
-                    {p.label}
+                    <img src={p.svg} alt={t(`priority.${p.value}`)} width={13} height={13} />
+                    {t(`priority.${p.value}`)}
                   </button>
                 ))}
               </div>
@@ -449,9 +454,9 @@ function AddTaskModal({
           />
         </div>
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" type="button" onClick={() => { reset(); onClose() }}>Hủy</Button>
+          <Button variant="ghost" type="button" onClick={() => { reset(); onClose() }}>{t('common.cancel')}</Button>
           <Button variant="primary" type="submit" loading={isPending}>
-            <Plus className="w-4 h-4" /> Tạo task
+            <Plus className="w-4 h-4" /> {t('board.createTask')}
           </Button>
         </div>
       </form>

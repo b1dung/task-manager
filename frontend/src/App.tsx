@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AppLayout } from '@/layout/AppLayout'
@@ -7,6 +7,8 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { useUIStore } from '@/stores/useUIStore'
 import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { applyTheme } from '@/lib/themes'
+import i18n from '@/i18n'
+import { useTranslation } from 'react-i18next'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { RegisterPage } from '@/pages/auth/RegisterPage'
 import { OAuthCallbackPage } from '@/pages/auth/OAuthCallbackPage'
@@ -34,6 +36,24 @@ function RequireAuth({ children }: { children: React.ReactNode }) {
   return <>{children}</>
 }
 
+function DocumentTitle() {
+  const { pathname } = useLocation()
+  const { t } = useTranslation()
+  useEffect(() => {
+    const routes: Array<[RegExp, string]> = [
+      [/^\/login/, 'auth.login'], [/^\/register/, 'auth.register'], [/^\/account/, 'account.title'],
+      [/\/tasks/, 'nav.board'], [/\/calendar/, 'pages.calendar'], [/\/notifications/, 'pages.notifications'],
+      [/\/activity/, 'pages.activity'], [/\/developer-report/, 'nav.developerReport'], [/\/reports/, 'pages.reports'], [/\/team/, 'pages.team'],
+      [/\/attachments/, 'pages.attachments'], [/\/archived/, 'pages.archived'], [/^\/users/, 'pages.users'],
+      [/^\/roles/, 'pages.roles'], [/\/settings/, 'pages.settings'], [/\/summary/, 'pages.summary'],
+      [/^\/my-tasks/, 'nav.myTasks'], [/^\/manage-projects/, 'nav.projectManagement'], [/^\/projects/, 'projects.title'],
+    ]
+    const key = routes.find(([pattern]) => pattern.test(pathname))?.[1]
+    document.title = key ? `${t(key)} · ${t('app.name')}` : t('app.name')
+  }, [pathname, t])
+  return null
+}
+
 /** Route guard: only render children if the user holds the given permission.
  * Backend enforces this too — this just avoids showing forbidden pages. */
 function RequirePermission({ permission, children }: { permission: string; children: React.ReactNode }) {
@@ -56,7 +76,8 @@ export default function App() {
 
   useEffect(() => {
     if (user?.appearance && user.appearance !== theme) setTheme(user.appearance)
-    document.documentElement.lang = user?.language ?? 'vi'
+    document.documentElement.lang = user?.language ?? 'en'
+    if (user?.language && i18n.language !== user.language) void i18n.changeLanguage(user.language)
   }, [user?.id, user?.appearance, user?.language, theme, setTheme])
 
   useEffect(() => {
@@ -66,6 +87,7 @@ export default function App() {
   return (
     <ErrorBoundary>
     <BrowserRouter>
+      <DocumentTitle />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />

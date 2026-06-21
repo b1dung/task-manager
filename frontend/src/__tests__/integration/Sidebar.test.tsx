@@ -144,13 +144,13 @@ describe('Sidebar', () => {
 
   it('opens create project modal when + button is clicked', async () => {
     renderSidebar()
-    await waitFor(() => expect(screen.getByTitle('Tạo project mới')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByTitle('Create project')).toBeInTheDocument())
 
-    fireEvent.click(screen.getByTitle('Tạo project mới'))
+    fireEvent.click(screen.getByTitle('Create project'))
 
     await waitFor(() => {
-      expect(screen.getByText('Tạo project mới')).toBeInTheDocument()
-      expect(screen.getByPlaceholderText('VD: Website Redesign')).toBeInTheDocument()
+      expect(screen.getByText('Create project')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('e.g. Website Redesign')).toBeInTheDocument()
     })
   })
 })

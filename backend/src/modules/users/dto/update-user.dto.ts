@@ -29,10 +29,10 @@ export class UpdateUserDto {
   @IsString()
   avatarUrl?: string;
 
-  @ApiPropertyOptional({ enum: ['vi', 'en'] })
+  @ApiPropertyOptional({ enum: ['vi', 'en', 'ja'] })
   @IsOptional()
-  @IsIn(['vi', 'en'])
-  language?: 'vi' | 'en';
+  @IsIn(['vi', 'en', 'ja'])
+  language?: 'vi' | 'en' | 'ja';
 
   @ApiPropertyOptional({ enum: ['light', 'midnight', 'mint'] })
   @IsOptional()

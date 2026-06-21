@@ -42,6 +42,13 @@ export class UpdateTaskDto {
   status?: TaskStatus;
 
   @ApiPropertyOptional({
+    description: 'Board column ID. Moving to a column re-derives status.',
+  })
+  @IsOptional()
+  @IsUUID()
+  columnId?: string;
+
+  @ApiPropertyOptional({
     description: 'User ID of the assignee, or null to unassign',
   })
   @IsOptional()

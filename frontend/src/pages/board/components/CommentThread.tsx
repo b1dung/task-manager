@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Send, Reply, Pencil, Trash2, MoreHorizontal } from 'lucide-react'
 import { commentsApi, type Comment } from '@/api/comments'
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export function CommentThread({ projectId, taskId }: Props) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const { user } = useAuthStore()
   const toast = useToast()
@@ -35,7 +37,7 @@ export function CommentThread({ projectId, taskId }: Props) {
       setContent('')
       setReplyTo(null)
     },
-    onError: () => toast.error('Gửi comment thất bại'),
+    onError: () => toast.error(t('board.commentFailed')),
   })
 
   const { mutate: updateComment } = useMutation({
@@ -45,13 +47,13 @@ export function CommentThread({ projectId, taskId }: Props) {
       qc.invalidateQueries({ queryKey: ['comments', projectId, taskId] })
       setEditing(null)
     },
-    onError: () => toast.error('Cập nhật comment thất bại'),
+    onError: () => toast.error(t('board.commentUpdateFailed')),
   })
 
   const { mutate: deleteComment } = useMutation({
     mutationFn: (id: string) => commentsApi.delete(projectId, taskId, id),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', projectId, taskId] }),
-    onError: () => toast.error('Xóa comment thất bại'),
+    onError: () => toast.error(t('board.commentDeleteFailed')),
   })
 
   const topLevel = comments.filter((c) => !c.parentId)
@@ -71,7 +73,7 @@ export function CommentThread({ projectId, taskId }: Props) {
   return (
     <div className="space-y-4">
       {topLevel.length === 0 && (
-        <p className="text-sm text-fg-subtle text-center py-4">Chưa có comment nào</p>
+        <p className="text-sm text-fg-subtle text-center py-4">{t('board.noComments')}</p>
       )}
 
       {topLevel.map((comment) => (
@@ -95,7 +97,7 @@ export function CommentThread({ projectId, taskId }: Props) {
           {replyTo && (
             <div className="flex items-center gap-2 text-xs text-fg-muted bg-bg-elevated rounded-lg px-2.5 py-1.5">
               <Reply className="w-3.5 h-3.5" />
-              Trả lời <strong>{replyTo.author.fullName}</strong>
+              {t('board.replyingTo', { name: replyTo.author.fullName })}
               <button onClick={() => setReplyTo(null)} className="ml-auto text-fg-subtle hover:text-fg">✕</button>
             </div>
           )}
@@ -105,7 +107,7 @@ export function CommentThread({ projectId, taskId }: Props) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && content.trim()) addComment()
             }}
-            placeholder="Viết comment... (Ctrl+Enter để gửi)"
+            placeholder={t('board.commentPlaceholder')}
             rows={2}
             className="w-full bg-bg-elevated border border-border rounded-lg px-3 py-2 text-sm text-fg resize-none focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-fg-subtle"
           />
@@ -117,7 +119,7 @@ export function CommentThread({ projectId, taskId }: Props) {
               loading={isPending}
               onClick={() => addComment()}
             >
-              <Send className="w-3.5 h-3.5" /> Gửi
+              <Send className="w-3.5 h-3.5" /> {t('board.send')}
             </Button>
           </div>
         </div>
@@ -139,6 +141,7 @@ function CommentItem({
   onUpdateComment: (args: { id: string; content: string }) => void
   onDeleteComment: (id: string) => void
 }) {
+  const { t } = useTranslation()
   const isOwn = comment.authorId === currentUserId
   const isEditing = editing?.id === comment.id
 
@@ -149,7 +152,7 @@ function CommentItem({
         <div className="flex items-center gap-2 mb-1">
           <span className="text-sm font-medium text-fg">{comment.author.fullName}</span>
           <span className="text-xs text-fg-subtle">{formatRelative(comment.createdAt)}</span>
-          {comment.editedAt && <span className="text-xs text-fg-subtle">(đã chỉnh sửa)</span>}
+          {comment.editedAt && <span className="text-xs text-fg-subtle">{t('board.edited')}</span>}
         </div>
 
         {isEditing ? (
@@ -167,9 +170,9 @@ function CommentItem({
                 size="sm"
                 onClick={() => onUpdateComment({ id: comment.id, content: editing.content })}
               >
-                Lưu
+                {t('common.save')}
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => onEdit(null)}>Hủy</Button>
+              <Button variant="ghost" size="sm" onClick={() => onEdit(null)}>{t('common.cancel')}</Button>
             </div>
           </div>
         ) : (
@@ -181,18 +184,18 @@ function CommentItem({
             onClick={() => onReply(comment)}
             className="text-xs text-fg-subtle hover:text-fg flex items-center gap-1 transition-colors"
           >
-            <Reply className="w-3 h-3" /> Trả lời
+            <Reply className="w-3 h-3" /> {t('board.reply')}
           </button>
           {isOwn && !isEditing && (
             <Dropdown
               trigger={
-                <button title="Chỉnh sửa / Xóa" className="text-xs text-fg-subtle hover:text-fg opacity-0 group-hover:opacity-100 transition-opacity">
+                <button title={t('board.editDelete')} className="text-xs text-fg-subtle hover:text-fg opacity-0 group-hover:opacity-100 transition-opacity">
                   <MoreHorizontal className="w-3.5 h-3.5" />
                 </button>
               }
               items={[
-                { label: 'Chỉnh sửa', icon: <Pencil className="w-4 h-4" />, onClick: () => onEdit({ id: comment.id, content: comment.content }) },
-                { label: 'Xóa', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDeleteComment(comment.id), danger: true },
+                { label: t('board.edit'), icon: <Pencil className="w-4 h-4" />, onClick: () => onEdit({ id: comment.id, content: comment.content }) },
+                { label: t('board.delete'), icon: <Trash2 className="w-4 h-4" />, onClick: () => onDeleteComment(comment.id), danger: true },
               ]}
             />
           )}

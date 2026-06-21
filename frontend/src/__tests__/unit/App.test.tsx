@@ -12,6 +12,6 @@ describe('App', () => {
   it('redirects unauthenticated users to login page', () => {
     render(<App />, { wrapper })
     // Unauthenticated → redirects to /login which shows the login form
-    expect(screen.getByRole('button', { name: /đăng nhập/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
   })
 })

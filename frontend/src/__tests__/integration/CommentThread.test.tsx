@@ -76,13 +76,13 @@ describe('CommentThread', () => {
 
   it('shows textarea for new comment', () => {
     renderThread()
-    expect(screen.getByPlaceholderText(/viết comment/i)).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/write a comment/i)).toBeInTheDocument()
   })
 
   it('reply button is visible for each comment', async () => {
     renderThread()
     await waitFor(() => {
-      const replyButtons = screen.getAllByText(/trả lời/i)
+      const replyButtons = screen.getAllByText(/reply/i)
       expect(replyButtons.length).toBeGreaterThanOrEqual(2)
     })
   })
@@ -90,7 +90,7 @@ describe('CommentThread', () => {
   it('shows edit/delete for own comments', async () => {
     renderThread()
     await waitFor(() => {
-      const editButtons = screen.getAllByTitle(/chỉnh sửa/i)
+      const editButtons = screen.getAllByTitle(/edit . delete/i)
       expect(editButtons.length).toBeGreaterThanOrEqual(1)
     })
   })
@@ -98,7 +98,7 @@ describe('CommentThread', () => {
   it('does not show edit for other users comments', async () => {
     renderThread()
     await waitFor(() => {
-      expect(screen.queryAllByTitle(/chỉnh sửa/i).length).toBeLessThan(2)
+      expect(screen.queryAllByTitle(/edit . delete/i).length).toBeLessThan(2)
     })
   })
 })

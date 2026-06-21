@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { Avatar, Button, Select } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { currentTimePreview, DEFAULT_TIMEZONE, TIMEZONE_LABELS, TIMEZONE_OPTIONS, type UserTimezone } from '@/lib/timezones'
+import { useTranslation } from 'react-i18next'
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin', manager: 'Manager', member: 'Member', viewer: 'Viewer',
@@ -22,6 +23,7 @@ function apiErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function AccountPage() {
+  const { t } = useTranslation()
   const { user, setUser } = useAuthStore()
   const toast = useToast()
   const fileRef = useRef<HTMLInputElement>(null)
@@ -41,9 +43,9 @@ export function AccountPage() {
     mutationFn: () => usersApi.update(user!.id, { fullName: fullName.trim() }),
     onSuccess: (updated) => {
       setUser({ ...user!, fullName: updated.fullName })
-      toast.success('Đã cập nhật thông tin')
+      toast.success(t('account.updated'))
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Lưu thất bại')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('account.saveFailed'))),
   })
 
   const infoDirty = !!user && fullName.trim() !== user.fullName
@@ -53,9 +55,9 @@ export function AccountPage() {
     mutationFn: () => usersApi.update(user!.id, { timezone }),
     onSuccess: (updated) => {
       setUser({ ...user!, timezone: updated.timezone })
-      toast.success('Đã cập nhật múi giờ')
+      toast.success(t('account.timezoneSaved'))
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Lưu múi giờ thất bại')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('account.timezoneFailed'))),
   })
 
   const MAX_SIZE_MB = 10
@@ -64,12 +66,12 @@ export function AccountPage() {
     const file = e.target.files?.[0]
     if (!file || !user) return
     if (!ALLOWED_TYPES.includes(file.type)) {
-      toast.error('Chỉ hỗ trợ ảnh JPG, PNG, WEBP, GIF')
+      toast.error(t('account.avatarTypeError'))
       if (fileRef.current) fileRef.current.value = ''
       return
     }
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-      toast.error(`Ảnh quá lớn (tối đa ${MAX_SIZE_MB}MB)`)
+      toast.error(t('account.avatarTooLarge', { max: MAX_SIZE_MB }))
       if (fileRef.current) fileRef.current.value = ''
       return
     }
@@ -77,9 +79,9 @@ export function AccountPage() {
     try {
       const updated = await usersApi.uploadAvatar(user.id, file)
       setUser({ ...user, avatarUrl: updated.avatarUrl })
-      toast.success('Cập nhật ảnh đại diện thành công')
+      toast.success(t('account.avatarUpdated'))
     } catch (err) {
-      toast.error(apiErrorMessage(err, 'Upload ảnh thất bại'))
+      toast.error(apiErrorMessage(err, t('account.avatarUploadFailed')))
     } finally {
       setAvatarUploading(false)
       if (fileRef.current) fileRef.current.value = ''
@@ -94,10 +96,10 @@ export function AccountPage() {
   const { mutate: changePassword, isPending: changingPw } = useMutation({
     mutationFn: () => usersApi.changePassword(user!.id, { currentPassword: curPw, newPassword: newPw }),
     onSuccess: () => {
-      toast.success('Đã đổi mật khẩu')
+      toast.success(t('account.passwordUpdated'))
       setCurPw(''); setNewPw(''); setConfirmPw('')
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Đổi mật khẩu thất bại')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('account.passwordFailed'))),
   })
 
   const pwDirty = !!(curPw || newPw || confirmPw)
@@ -113,8 +115,8 @@ export function AccountPage() {
     <div className="flex-1 overflow-y-auto bg-bg px-6 py-8">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
-          <h1 className="text-xl font-semibold text-fg">Tài khoản</h1>
-          <p className="text-sm text-fg-muted mt-0.5">Quản lý thông tin cá nhân và mật khẩu của bạn</p>
+          <h1 className="text-xl font-semibold text-fg">{t('account.title')}</h1>
+          <p className="text-sm text-fg-muted mt-0.5">{t('account.subtitle')}</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
@@ -122,7 +124,7 @@ export function AccountPage() {
         <div className="rounded-xl border border-border bg-bg-surface">
           <div className="flex items-center gap-2 px-6 py-3 border-b border-border">
             <User className="w-4 h-4 text-fg-muted" />
-            <h2 className="text-sm font-semibold text-fg">Thông tin tài khoản</h2>
+            <h2 className="text-sm font-semibold text-fg">{t('account.information')}</h2>
           </div>
           <div className="p-6 space-y-5">
             {/* Avatar */}
@@ -146,29 +148,29 @@ export function AccountPage() {
               <div className="space-y-0.5">
                 <p className="text-sm font-medium text-fg">{user.fullName}</p>
                 <button onClick={() => fileRef.current?.click()} disabled={avatarUploading}
-                  className="text-xs text-accent hover:underline disabled:opacity-50">Thay đổi ảnh đại diện</button>
+                  className="text-xs text-accent hover:underline disabled:opacity-50">{t('account.changeAvatar')}</button>
               </div>
               <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleAvatarChange} />
             </div>
 
             <div className="space-y-1.5">
-              <label className={labelCls}><User className="w-3.5 h-3.5" /> Họ và tên</label>
-              <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Nhập tên đầy đủ" />
+              <label className={labelCls}><User className="w-3.5 h-3.5" /> {t('account.name')}</label>
+              <input className={inputCls} value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder={t('account.namePlaceholder')} />
             </div>
             <div className="space-y-1.5">
               <label className={labelCls}><Mail className="w-3.5 h-3.5" /> Email</label>
               <input className={`${inputCls} bg-bg-subtle text-fg-muted cursor-not-allowed`} value={user.email} readOnly />
             </div>
             <div className="space-y-1.5">
-              <label className={labelCls}><Shield className="w-3.5 h-3.5" /> Vai trò</label>
+              <label className={labelCls}><Shield className="w-3.5 h-3.5" /> {t('account.role')}</label>
               <span className="inline-flex items-center rounded-[4px] border border-border bg-bg-subtle px-2.5 py-1 text-xs font-medium text-fg-muted">
                 {ROLE_LABEL[user.role] ?? user.role}
               </span>
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="ghost" size="sm" disabled={!infoDirty || savingProfile} onClick={resetInfo}>Hủy</Button>
-              <Button variant="primary" size="sm" loading={savingProfile} disabled={!infoDirty || !infoValid} onClick={() => saveProfile()}>Lưu thay đổi</Button>
+              <Button variant="ghost" size="sm" disabled={!infoDirty || savingProfile} onClick={resetInfo}>{t('common.cancel')}</Button>
+              <Button variant="primary" size="sm" loading={savingProfile} disabled={!infoDirty || !infoValid} onClick={() => saveProfile()}>{t('account.saveChanges')}</Button>
             </div>
           </div>
         </div>
@@ -177,27 +179,27 @@ export function AccountPage() {
         <div className="rounded-xl border border-border bg-bg-surface">
           <div className="flex items-center gap-2 px-6 py-3 border-b border-border">
             <KeyRound className="w-4 h-4 text-fg-muted" />
-            <h2 className="text-sm font-semibold text-fg">Đổi mật khẩu</h2>
+            <h2 className="text-sm font-semibold text-fg">{t('account.passwordSection')}</h2>
           </div>
           <div className="p-6 space-y-5">
             <div className="space-y-1.5">
-              <label className={labelCls}><Lock className="w-3.5 h-3.5" /> Mật khẩu hiện tại</label>
+              <label className={labelCls}><Lock className="w-3.5 h-3.5" /> {t('account.currentPassword')}</label>
               <input className={inputCls} type="password" value={curPw} onChange={(e) => setCurPw(e.target.value)} placeholder="••••••••" autoComplete="current-password" />
             </div>
             <div className="space-y-1.5">
-              <label className={labelCls}><Lock className="w-3.5 h-3.5" /> Mật khẩu mới</label>
-              <input className={inputCls} type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder="Tối thiểu 8 ký tự" autoComplete="new-password" />
-              {newPw.length > 0 && newPw.length < 8 && <p className="text-xs text-danger">Mật khẩu mới phải có ít nhất 8 ký tự</p>}
+              <label className={labelCls}><Lock className="w-3.5 h-3.5" /> {t('account.newPassword')}</label>
+              <input className={inputCls} type="password" value={newPw} onChange={(e) => setNewPw(e.target.value)} placeholder={t('users.passwordPlaceholder')} autoComplete="new-password" />
+              {newPw.length > 0 && newPw.length < 8 && <p className="text-xs text-danger">{t('auth.passwordMin8')}</p>}
             </div>
             <div className="space-y-1.5">
-              <label className={labelCls}><Lock className="w-3.5 h-3.5" /> Xác nhận mật khẩu mới</label>
-              <input className={inputCls} type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder="Nhập lại mật khẩu mới" autoComplete="new-password" />
-              {mismatch && <p className="text-xs text-danger">Mật khẩu xác nhận không khớp</p>}
+              <label className={labelCls}><Lock className="w-3.5 h-3.5" /> {t('account.confirmPassword')}</label>
+              <input className={inputCls} type="password" value={confirmPw} onChange={(e) => setConfirmPw(e.target.value)} placeholder={t('account.confirmPlaceholder')} autoComplete="new-password" />
+              {mismatch && <p className="text-xs text-danger">{t('account.passwordMismatch')}</p>}
             </div>
 
             <div className="flex justify-end gap-2 pt-1">
-              <Button variant="ghost" size="sm" disabled={!pwDirty || changingPw} onClick={resetPw}>Hủy</Button>
-              <Button variant="primary" size="sm" loading={changingPw} disabled={!pwValid} onClick={() => changePassword()}>Cập nhật mật khẩu</Button>
+              <Button variant="ghost" size="sm" disabled={!pwDirty || changingPw} onClick={resetPw}>{t('common.cancel')}</Button>
+              <Button variant="primary" size="sm" loading={changingPw} disabled={!pwValid} onClick={() => changePassword()}>{t('account.updatePassword')}</Button>
             </div>
           </div>
         </div>
@@ -206,21 +208,21 @@ export function AccountPage() {
         <div id="timezone" className="rounded-xl border border-border bg-bg-surface lg:col-span-2">
           <div className="flex items-center gap-2 px-4 py-3 sm:px-6 border-b border-border">
             <Clock3 className="w-4 h-4 text-fg-muted" />
-            <h2 className="text-sm font-semibold text-fg">Múi giờ</h2>
+            <h2 className="text-sm font-semibold text-fg">{t('account.timezone')}</h2>
           </div>
           <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-end sm:p-6">
             <div className="min-w-0 flex-1 space-y-2">
               <Select
                 id="account-timezone"
-                label="Múi giờ hiển thị"
+                label={t('account.displayTimezone')}
                 value={timezone}
                 onChange={(event) => setTimezone(event.target.value as UserTimezone)}
                 options={TIMEZONE_OPTIONS.map((value) => ({ value, label: TIMEZONE_LABELS[value] }))}
               />
               <p className="text-xs text-fg-muted" aria-live="polite">
-                {currentTimePreview(timezone, previewNow)}
+                {currentTimePreview(timezone, previewNow, t('account.currentTime'))}
               </p>
-              <p className="text-xs text-fg-subtle">Dữ liệu thời gian vẫn được lưu dưới dạng UTC.</p>
+              <p className="text-xs text-fg-subtle">{t('account.utcNotice')}</p>
             </div>
             <Button
               variant="primary"
@@ -230,7 +232,7 @@ export function AccountPage() {
               onClick={() => saveTimezone()}
               className="w-full sm:w-auto"
             >
-              Lưu múi giờ
+              {t('account.saveTimezone')}
             </Button>
           </div>
         </div>

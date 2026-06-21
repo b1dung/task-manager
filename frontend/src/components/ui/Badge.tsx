@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils'
+import { useTranslation } from 'react-i18next'
 
 type BadgeVariant = 'default' | 'success' | 'warning' | 'danger' | 'info' | 'accent'
 
@@ -36,35 +37,38 @@ export function Badge({ children, variant = 'default', className, dot }: BadgePr
 }
 
 export function PriorityBadge({ priority }: { priority: string }) {
-  const map: Record<string, { label: string; variant: BadgeVariant }> = {
-    urgent: { label: 'Urgent', variant: 'danger' },
-    high: { label: 'High', variant: 'warning' },
-    medium: { label: 'Medium', variant: 'info' },
-    low: { label: 'Low', variant: 'default' },
+  const { t } = useTranslation()
+  const map: Record<string, { labelKey: string; variant: BadgeVariant }> = {
+    urgent: { labelKey: 'priority.urgent', variant: 'danger' },
+    high: { labelKey: 'priority.high', variant: 'warning' },
+    medium: { labelKey: 'priority.medium', variant: 'info' },
+    low: { labelKey: 'priority.low', variant: 'default' },
   }
-  const { label, variant } = map[priority] ?? { label: priority, variant: 'default' }
-  return <Badge variant={variant} dot>{label}</Badge>
+  const item = map[priority]
+  return <Badge variant={item?.variant ?? 'default'} dot>{item ? t(item.labelKey) : priority}</Badge>
 }
 
 export function TypeBadge({ type }: { type: string }) {
-  const map: Record<string, { label: string; variant: BadgeVariant }> = {
-    bug: { label: 'Bug', variant: 'danger' },
-    feature: { label: 'Feature', variant: 'success' },
-    task: { label: 'Task', variant: 'default' },
-    story: { label: 'Story', variant: 'accent' },
-    epic: { label: 'Epic', variant: 'info' },
+  const { t } = useTranslation()
+  const map: Record<string, { labelKey: string; variant: BadgeVariant }> = {
+    bug: { labelKey: 'taskType.bug', variant: 'danger' },
+    feature: { labelKey: 'taskType.feature', variant: 'success' },
+    task: { labelKey: 'taskType.task', variant: 'default' },
+    story: { labelKey: 'taskType.story', variant: 'accent' },
+    epic: { labelKey: 'taskType.epic', variant: 'info' },
   }
-  const { label, variant } = map[type] ?? { label: type, variant: 'default' }
-  return <Badge variant={variant}>{label}</Badge>
+  const item = map[type]
+  return <Badge variant={item?.variant ?? 'default'}>{item ? t(item.labelKey) : type}</Badge>
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, { label: string; variant: BadgeVariant }> = {
-    todo: { label: 'Todo', variant: 'default' },
-    in_progress: { label: 'In Progress', variant: 'info' },
-    in_review: { label: 'In Review', variant: 'warning' },
-    done: { label: 'Done', variant: 'success' },
+  const { t } = useTranslation()
+  const map: Record<string, { labelKey: string; variant: BadgeVariant }> = {
+    todo: { labelKey: 'status.todo', variant: 'default' },
+    in_progress: { labelKey: 'status.in_progress', variant: 'info' },
+    in_review: { labelKey: 'status.in_review', variant: 'warning' },
+    done: { labelKey: 'status.done', variant: 'success' },
   }
-  const { label, variant } = map[status] ?? { label: status, variant: 'default' }
-  return <Badge variant={variant}>{label}</Badge>
+  const item = map[status]
+  return <Badge variant={item?.variant ?? 'default'}>{item ? t(item.labelKey) : status}</Badge>
 }

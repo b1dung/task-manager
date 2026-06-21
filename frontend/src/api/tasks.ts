@@ -81,6 +81,7 @@ export interface UpdateTaskDto {
   type?: string
   priority?: string
   status?: string
+  columnId?: string
   assigneeId?: string | null
   sprintId?: string | null
   parentTaskId?: string | null

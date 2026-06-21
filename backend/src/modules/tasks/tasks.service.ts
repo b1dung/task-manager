@@ -406,7 +406,22 @@ export class TasksService {
     if (dto.description !== undefined) task.description = dto.description;
     if (dto.type !== undefined) task.type = dto.type;
     if (dto.priority !== undefined) task.priority = dto.priority;
-    if (dto.status !== undefined && dto.status !== task.status) {
+    // Moving to a board column is the canonical way to change "status":
+    // columns are the source of truth, status is re-derived from the column name.
+    if (dto.columnId !== undefined && dto.columnId !== task.columnId) {
+      const targetCol = await this.columnRepository.findOne({
+        where: { id: dto.columnId, projectId },
+      });
+      if (!targetCol) {
+        throw new BadRequestException('Column does not belong to this project');
+      }
+      const positionInTarget = await this.taskRepository.count({
+        where: { columnId: targetCol.id },
+      });
+      task.columnId = targetCol.id;
+      task.position = positionInTarget;
+      task.status = this.columnNameToStatus(targetCol.name);
+    } else if (dto.status !== undefined && dto.status !== task.status) {
       task.status = dto.status;
       // Auto-move to the matching column so the board stays in sync
       const projectCols = await this.columnRepository.find({

@@ -1,5 +1,6 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useRef, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -24,6 +25,7 @@ import { tasksApi, type Task, type UpdateTaskDto } from '@/api/tasks'
 import { commentsApi, type Comment } from '@/api/comments'
 import { membersApi } from '@/api/members'
 import { labelsApi } from '@/api/labels'
+import { columnsApi, type BoardColumn } from '@/api/columns'
 import { attachmentsApi } from '@/api/attachments'
 import { apiClient } from '@/api/client'
 import { Avatar, Button, ConfirmDialog, Dropdown, Skeleton } from '@/components/ui'
@@ -126,6 +128,7 @@ interface Props {
 }
 
 export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', open, onClose, onOpenTask }: Props) {
+  const { t: tr } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const permissions = usePermissions()
@@ -183,7 +186,7 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
     onError: () => {
       // Rollback: re-fetch fresh server state
       qc.invalidateQueries({ queryKey: ['task', projectId, t?.id] })
-      toast.error('Cập nhật thất bại')
+      toast.error(tr('taskDetail.updateFailed'))
     },
   })
 
@@ -197,16 +200,16 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
       qc.invalidateQueries({ queryKey: ['tasks', projectId] })
       setConfirmAction(null)
       onClose()
-      toast.undo(`Đã xóa "${title}"`, () => {
+      toast.undo(tr('taskDetail.deletedUndo', { title }), () => {
         tasksApi.restore(projectId, taskId)
           .then(() => {
             qc.invalidateQueries({ queryKey: ['tasks', projectId] })
-            toast.success('Đã hoàn lại task')
+            toast.success(tr('taskDetail.restoredTask'))
           })
-          .catch(() => toast.error('Hoàn tác thất bại'))
+          .catch(() => toast.error(tr('taskDetail.undoFailed')))
       })
     },
-    onError: () => toast.error('Xóa task thất bại'),
+    onError: () => toast.error(tr('taskDetail.deleteFailed')),
   })
 
   const { mutate: archiveTask, isPending: archivingTask } = useMutation({
@@ -216,9 +219,9 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
       qc.invalidateQueries({ queryKey: ['tasks', projectId] })
       setConfirmAction(null)
       onClose()
-      toast.success(`Đã lưu trữ "${title}"`)
+      toast.success(tr('taskDetail.archivedUndo', { title }))
     },
-    onError: () => toast.error('Lưu trữ task thất bại'),
+    onError: () => toast.error(tr('taskDetail.archiveFailed')),
   })
 
   useEffect(() => {
@@ -274,7 +277,7 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
           <div className="flex-1 flex items-center justify-center">
             <div className="flex flex-col items-center gap-3 text-fg-muted">
               <div className="w-8 h-8 rounded-full border-2 border-accent border-t-transparent animate-spin" />
-              <span className="text-sm">Đang tải...</span>
+              <span className="text-sm">{tr('taskDetail.loading')}</span>
             </div>
           </div>
         )}
@@ -355,9 +358,9 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
         open={confirmAction === 'delete'}
         onClose={() => setConfirmAction(null)}
         onConfirm={() => deleteTask()}
-        title="Xóa task"
-        message={<>Bạn có chắc muốn xóa task <span className="font-medium text-fg">"{t?.title}"</span>? Bạn có 10 giây để hoàn tác sau khi xóa.</>}
-        confirmLabel="Xóa vĩnh viễn"
+        title={tr('taskDetail.deleteTitle')}
+        message={tr('taskDetail.deleteMsg', { title: t?.title ?? '' })}
+        confirmLabel={tr('taskDetail.deletePermanent')}
         requireText="delete"
         loading={deletingTask}
       />
@@ -365,9 +368,9 @@ export function TaskDetailModal({ task, taskId, projectId, projectKey = 'TASK', 
         open={confirmAction === 'archive'}
         onClose={() => setConfirmAction(null)}
         onConfirm={() => archiveTask()}
-        title="Lưu trữ task"
-        message={<>Đưa task <span className="font-medium text-fg">"{t?.title}"</span> vào lưu trữ? Task sẽ bị ẩn khỏi board nhưng dữ liệu được giữ nguyên.</>}
-        confirmLabel="Lưu trữ"
+        title={tr('taskDetail.archiveTitle')}
+        message={tr('taskDetail.archiveMsg', { title: t?.title ?? '' })}
+        confirmLabel={tr('taskDetail.archiveConfirm')}
         requireText="archive"
         danger={false}
         loading={archivingTask}
@@ -387,11 +390,12 @@ function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onO
   onDelete?: () => void
   onArchive?: () => void
 }) {
+  const { t: tr } = useTranslation()
   const toast = useToast()
 
   const copyId = () => {
     navigator.clipboard.writeText(displayId)
-    toast.success('Đã copy task ID')
+    toast.success(tr('taskDetail.taskIdCopied'))
   }
 
   const parentDisplayId = parentTask?.taskNumber != null
@@ -406,7 +410,7 @@ function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onO
           <>
             <button
               onClick={() => onOpenParent?.(parentTask.id)}
-              title={`Mở ${parentDisplayId} — ${parentTask.title}`}
+              title={tr('taskDetail.openParent', { id: parentDisplayId, title: parentTask.title })}
               className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-bg-subtle border border-border hover:border-accent/50 hover:text-accent transition-colors font-mono shrink-0"
             >
               <CheckSquare className="w-3 h-3" />
@@ -443,7 +447,7 @@ function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onO
         <button
           title="Share"
           className="h-7 w-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-bg-subtle transition-colors"
-          onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link đã copy') }}
+          onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success(tr('taskDetail.linkCopied')) }}
         >
           <Share2 className="w-3.5 h-3.5" />
         </button>
@@ -457,7 +461,7 @@ function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onO
           align="right"
           items={[
             { label: 'Copy link', icon: <Link2 className="w-4 h-4" />, onClick: () => navigator.clipboard.writeText(window.location.href) },
-            { label: 'Duplicate', icon: <AlignLeft className="w-4 h-4" />, onClick: () => toast.info('Duplicate chưa hỗ trợ') },
+            { label: tr('taskDetail.duplicate'), icon: <AlignLeft className="w-4 h-4" />, onClick: () => toast.info(tr('taskDetail.duplicateNotSupported')) },
             { label: 'Archive', icon: <Lock className="w-4 h-4" />, onClick: () => onArchive?.(), disabled: !onArchive },
             { label: 'Delete', icon: <Trash2 className="w-4 h-4" />, onClick: () => onDelete?.(), danger: true, disabled: !onDelete },
           ]}
@@ -471,7 +475,7 @@ function DetailHeader({ displayId, parentTask, projectKey = 'TASK', onClose, onO
         </button>
 
         <button
-          title="Đóng"
+          title={tr('taskDetail.close')}
           onClick={onClose}
           className="h-7 w-7 flex items-center justify-center rounded-md text-fg-subtle hover:text-fg hover:bg-bg-subtle transition-colors"
         >
@@ -548,6 +552,7 @@ function EditorToolbarSep() {
 }
 
 function DescriptionEditor({ task, onSave }: { task: Task; onSave: (d: string) => void }) {
+  const { t: tr } = useTranslation()
   const [dirty, setDirty] = useState(false)
   const [pending, setPending] = useState<File[]>([])
   const [uploading, setUploading] = useState(false)
@@ -564,7 +569,7 @@ function DescriptionEditor({ task, onSave }: { task: Task; onSave: (d: string) =
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       SecureImage.configure({ allowBase64: false, inline: false, projectId: task.projectId }),
       TiptapLink.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: 'Thêm mô tả cho task…' }),
+      Placeholder.configure({ placeholder: tr('taskDetail.descPlaceholder') }),
       Highlight,
     ],
     content: task.description ?? '',
@@ -596,9 +601,9 @@ function DescriptionEditor({ task, onSave }: { task: Task; onSave: (d: string) =
         await qc.invalidateQueries({ queryKey: ['task-attachments', task.projectId, task.id] })
         setPending([])
         setProgress({})
-        toast.success(`Đã thêm ${count} file đính kèm`)
+        toast.success(tr('taskDetail.filesAdded', { count }))
       } catch {
-        toast.error('Upload file thất bại')
+        toast.error(tr('taskDetail.uploadFailed'))
       } finally {
         setUploading(false)
       }
@@ -639,7 +644,7 @@ function DescriptionEditor({ task, onSave }: { task: Task; onSave: (d: string) =
       const att = await attachmentsApi.upload(task.projectId, task.id, file)
       editor?.chain().focus().setImage({ src: att.fileUrl }).run()
     } catch {
-      toast.error('Upload ảnh thất bại')
+      toast.error(tr('taskDetail.imageUploadFailed'))
     }
   }
 
@@ -753,7 +758,7 @@ function DescriptionEditor({ task, onSave }: { task: Task; onSave: (d: string) =
                     <button
                       onClick={() => setPending((prev) => prev.filter((_, idx) => idx !== i))}
                       className="shrink-0 text-fg-subtle hover:text-danger"
-                      title="Bỏ file"
+                      title={tr('taskDetail.removeFile')}
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -800,6 +805,7 @@ function formatBytes(bytes: number): string {
 }
 
 function AttachmentsSection({ task, projectId }: { task: Task; projectId: string }) {
+  const { t: tr } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const currentUserId = useAuthStore((s) => s.user?.id)
@@ -814,9 +820,9 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
     mutationFn: (id: string) => attachmentsApi.remove(projectId, task.id, id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['task-attachments', projectId, task.id] })
-      toast.success('Đã xóa file')
+      toast.success(tr('taskDetail.fileDeleted'))
     },
-    onError: () => toast.error('Xóa file thất bại (chỉ xóa được file của bạn)'),
+    onError: () => toast.error(tr('taskDetail.fileDeleteFailed')),
   })
 
   const download = async (id: string, fileName: string) => {
@@ -827,7 +833,7 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
       el.href = url; el.download = fileName.normalize('NFC'); el.click()
       URL.revokeObjectURL(url)
     } catch {
-      toast.error('Tải file thất bại')
+      toast.error(tr('taskDetail.fileDownloadFailed'))
     }
   }
 
@@ -851,7 +857,7 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
                 type="button"
                 onClick={() => download(a.id, a.fileName)}
                 className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded bg-bg-subtle text-fg-subtle"
-                title="Mở file"
+                title={tr('taskDetail.openFile')}
               >
                 <FileText className="h-4 w-4" />
               </button>
@@ -867,7 +873,7 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
                 <button
                   onClick={() => download(a.id, a.fileName)}
                   className="rounded-md p-1.5 text-fg-subtle hover:bg-bg-elevated hover:text-fg transition-colors"
-                  title="Tải về"
+                  title={tr('taskDetail.download')}
                 >
                   <Download className="h-3.5 w-3.5" />
                 </button>
@@ -876,7 +882,7 @@ function AttachmentsSection({ task, projectId }: { task: Task; projectId: string
                     onClick={() => remove(a.id)}
                     disabled={removing}
                     className="rounded-md p-1.5 text-fg-subtle hover:bg-danger/10 hover:text-danger transition-colors disabled:opacity-50"
-                    title="Xóa"
+                    title={tr('taskDetail.delete')}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </button>
@@ -962,6 +968,7 @@ function SubtaskStatusPicker({ sub, projectId, onUpdate }: {
 function SubtasksSection({ task, projectId, projectKey = 'TASK', onSubtaskClick }: {
   task: Task; projectId: string; projectKey?: string; onSubtaskClick?: (taskId: string) => void
 }) {
+  const { t: tr } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [adding, setAdding] = useState(false)
@@ -998,7 +1005,7 @@ function SubtasksSection({ task, projectId, projectKey = 'TASK', onSubtaskClick 
       setAdding(false)
     },
     onError: () => {
-      toast.error('Tạo subtask thất bại')
+      toast.error(tr('taskDetail.createSubtaskFailed'))
       qc.invalidateQueries({ queryKey: ['tasks', projectId] })
     },
   })
@@ -1108,7 +1115,7 @@ function SubtasksSection({ task, projectId, projectKey = 'TASK', onSubtaskClick 
               if (e.key === 'Enter' && newTitle.trim()) createSubtask()
               if (e.key === 'Escape') { setAdding(false); setNewTitle('') }
             }}
-            placeholder="Tên subtask..."
+            placeholder={tr('taskDetail.subtaskPlaceholder')}
             className="flex-1 h-8 rounded-lg border border-border bg-bg-elevated px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-fg-subtle"
           />
           <Button variant="primary" size="sm" onClick={() => newTitle.trim() && createSubtask()} loading={isPending}>Add</Button>
@@ -1122,6 +1129,7 @@ function SubtasksSection({ task, projectId, projectKey = 'TASK', onSubtaskClick 
 // ─── Linked Items Section ─────────────────────────────────────────────────────
 
 function LinkedItemsSection({ task, projectId }: { task: Task; projectId: string }) {
+  const { t: tr } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [adding, setAdding] = useState(false)
@@ -1146,15 +1154,15 @@ function LinkedItemsSection({ task, projectId }: { task: Task; projectId: string
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['task-links', projectId, task.id] })
       setAdding(false); setSearch(''); setSelectedId('')
-      toast.success('Đã liên kết task')
+      toast.success(tr('taskDetail.linked'))
     },
-    onError: () => toast.error('Liên kết thất bại'),
+    onError: () => toast.error(tr('taskDetail.linkFailed')),
   })
 
   const { mutate: removeLink } = useMutation({
     mutationFn: (linkId: string) => apiClient.delete(`/projects/${projectId}/tasks/${task.id}/links/${linkId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['task-links', projectId, task.id] }),
-    onError: () => toast.error('Xóa liên kết thất bại'),
+    onError: () => toast.error(tr('taskDetail.unlinkFailed')),
   })
 
   const filtered = (allTasks ?? []).filter(t =>
@@ -1203,7 +1211,7 @@ function LinkedItemsSection({ task, projectId }: { task: Task; projectId: string
             autoFocus
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm kiếm task..."
+            placeholder={tr('taskDetail.searchTask')}
             className="w-full h-8 rounded-lg border border-border bg-bg-subtle px-2.5 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-accent placeholder:text-fg-subtle"
           />
           {filtered.length > 0 && (
@@ -1225,7 +1233,7 @@ function LinkedItemsSection({ task, projectId }: { task: Task; projectId: string
           )}
           <div className="flex gap-2">
             <Button variant="primary" size="sm" onClick={() => selectedId && addLink()} disabled={!selectedId} loading={isPending}>Link</Button>
-            <Button variant="ghost" size="sm" onClick={() => { setAdding(false); setSearch(''); setSelectedId('') }}>Hủy</Button>
+            <Button variant="ghost" size="sm" onClick={() => { setAdding(false); setSearch(''); setSelectedId('') }}>{tr('common.cancel')}</Button>
           </div>
         </div>
       )}
@@ -1236,6 +1244,7 @@ function LinkedItemsSection({ task, projectId }: { task: Task; projectId: string
 // ─── Tab: All ─────────────────────────────────────────────────────────────────
 
 function AllTab({ projectId, taskId }: { projectId: string; taskId: string }) {
+  const { t: tr } = useTranslation()
   const { data: comments = [], isLoading: cLoading } = useQuery({
     queryKey: ['comments', projectId, taskId],
     queryFn: () => commentsApi.list(projectId, taskId),
@@ -1254,7 +1263,7 @@ function AllTab({ projectId, taskId }: { projectId: string; taskId: string }) {
     ...activity.map(a => ({ type: 'activity' as const, date: a.createdAt, data: a })),
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-  if (!items.length) return <p className="text-sm text-fg-subtle text-center py-8">Chưa có hoạt động nào</p>
+  if (!items.length) return <p className="text-sm text-fg-subtle text-center py-8">{tr('taskDetail.noActivity')}</p>
 
   return (
     <div className="space-y-3">
@@ -1269,6 +1278,7 @@ function AllTab({ projectId, taskId }: { projectId: string; taskId: string }) {
 // ─── Tab: Comments ────────────────────────────────────────────────────────────
 
 function CommentsTab({ projectId, taskId }: { projectId: string; taskId: string }) {
+  const { t: tr } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const { user } = useAuthStore()
@@ -1296,7 +1306,7 @@ function CommentsTab({ projectId, taskId }: { projectId: string; taskId: string 
       setContent(''); setReplyTo(null)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', projectId, taskId] }),
-    onError: () => { toast.error('Gửi thất bại'); qc.invalidateQueries({ queryKey: ['comments', projectId, taskId] }) },
+    onError: () => { toast.error(tr('taskDetail.sendFailed')); qc.invalidateQueries({ queryKey: ['comments', projectId, taskId] }) },
   })
 
   const { mutate: updateComment } = useMutation({
@@ -1319,7 +1329,7 @@ function CommentsTab({ projectId, taskId }: { projectId: string; taskId: string 
   return (
     <div className="space-y-4">
       {topLevel.length === 0 && (
-        <p className="text-sm text-fg-subtle text-center py-4">Chưa có comment nào</p>
+        <p className="text-sm text-fg-subtle text-center py-4">{tr('taskDetail.noComments')}</p>
       )}
       {topLevel.map((c) => (
         <CommentBubble
@@ -1339,7 +1349,7 @@ function CommentsTab({ projectId, taskId }: { projectId: string; taskId: string 
       <div className="pt-2 border-t border-border">
         {replyTo && (
           <div className="flex items-center gap-2 text-xs text-fg-muted bg-bg-subtle rounded-lg px-2.5 py-1.5 mb-2">
-            Trả lời <strong>{replyTo.author.fullName}</strong>
+            {tr('taskDetail.replyingTo', { name: replyTo.author.fullName })}
             <button onClick={() => setReplyTo(null)} className="ml-auto hover:text-fg">✕</button>
           </div>
         )}
@@ -1473,6 +1483,7 @@ interface ActivityLog {
 }
 
 function HistoryTab({ projectId, taskId }: { projectId: string; taskId: string }) {
+  const { t: tr } = useTranslation()
   const { data: logs = [], isLoading } = useQuery({
     queryKey: ['activity', projectId, 'task', taskId],
     queryFn: () => apiClient.get<{ success: true; data: ActivityLog[] }>(`/projects/${projectId}/activity`, {
@@ -1481,7 +1492,7 @@ function HistoryTab({ projectId, taskId }: { projectId: string; taskId: string }
   })
 
   if (isLoading) return <TimelineSkeleton />
-  if (!logs.length) return <p className="text-sm text-fg-subtle text-center py-8">Chưa có lịch sử</p>
+  if (!logs.length) return <p className="text-sm text-fg-subtle text-center py-8">{tr('taskDetail.noHistory')}</p>
 
   return (
     <div className="space-y-2">
@@ -1600,13 +1611,17 @@ function RightColumn({ task, projectId, projectKey = 'TASK', onUpdate }: {
     queryKey: ['labels', projectId],
     queryFn: () => labelsApi.list(projectId),
   })
+  const { data: columns = [] } = useQuery({
+    queryKey: ['columns', projectId],
+    queryFn: () => columnsApi.list(projectId),
+  })
 
   return (
     <div className="w-[400px] min-w-[400px] shrink-0 border-l border-border overflow-y-auto scrollbar-thin flex flex-col">
 
       {/* Status + quick actions */}
       <div className="px-5 py-4 border-b border-border space-y-2">
-        <StatusDropdown task={task} onUpdate={onUpdate} />
+        <StatusDropdown task={task} columns={columns} onUpdate={onUpdate} />
         <div className="flex gap-2">
           <Button variant="secondary" size="sm" className="flex-1 gap-1.5">
             <Zap className="w-3.5 h-3.5" /> Automation
@@ -1732,10 +1747,33 @@ function RightColumn({ task, projectId, projectKey = 'TASK', onUpdate }: {
 
 // ─── Status Dropdown ──────────────────────────────────────────────────────────
 
-function StatusDropdown({ task, onUpdate }: { task: Task; onUpdate: (dto: UpdateTaskDto) => void }) {
+// Map a column name to one of the built-in status palette keys (display only;
+// the backend re-derives the stored status enum independently).
+function columnStatusKey(name?: string | null): string {
+  const n = (name ?? '').toLowerCase()
+  if (/(done|complete|closed|hoàn thành|xong)/.test(n)) return 'done'
+  if (/(review|testing|qa|duyệt|kiểm thử)/.test(n)) return 'in_review'
+  if (/(progress|doing|active|wip|đang|thực hiện)/.test(n)) return 'in_progress'
+  return 'todo'
+}
+
+// Visual for a column: prefer its own color, else fall back to the status palette.
+function columnVisual(col?: BoardColumn | null): { bg: string; fg: string } {
+  if (col?.color) return { bg: col.color, fg: '#FFFFFF' }
+  const sc = STATUS_CONFIG[columnStatusKey(col?.name)] ?? STATUS_CONFIG.todo
+  return { bg: sc.hexBg, fg: sc.hexColor }
+}
+
+// Status = the task's board column. Columns are the source of truth, so the
+// dropdown lists the project's actual columns; picking one moves the task there.
+function StatusDropdown({ task, columns, onUpdate }: { task: Task; columns: BoardColumn[]; onUpdate: (dto: UpdateTaskDto) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const sc = STATUS_CONFIG[task.status] ?? STATUS_CONFIG.todo
+
+  const currentCol = columns.find((c) => c.id === task.columnId) ?? null
+  const current = columnVisual(currentCol)
+  const fallbackLabel = STATUS_CONFIG[task.status]?.label ?? task.status
+  const currentLabel = currentCol?.name ?? fallbackLabel
 
   useEffect(() => {
     if (!open) return
@@ -1748,31 +1786,33 @@ function StatusDropdown({ task, onUpdate }: { task: Task; onUpdate: (dto: Update
     <div ref={ref} className="relative">
       <button
         onClick={() => setOpen(v => !v)}
-        style={{ backgroundColor: sc.hexBg, color: sc.hexColor }}
+        style={{ backgroundColor: current.bg, color: current.fg }}
         className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
       >
-        {sc.label}
+        {currentLabel}
         <ChevronDown className="w-3.5 h-3.5" />
       </button>
       {open && (
         <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-lg border border-border bg-bg-surface shadow-app-md overflow-hidden">
-          {Object.entries(STATUS_CONFIG).map(([v, c]) => (
-            <button
-              key={v}
-              onClick={() => { onUpdate({ status: v }); setOpen(false) }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-bg-subtle transition-colors"
-            >
-              <span
-                className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: c.hexBg }}
-              />
-              <span style={{ color: v === task.status ? c.hexColor === '#FFFFFF' ? c.color : undefined : undefined }}
-                className={cn('flex-1 text-left text-fg', v === task.status && 'font-medium')}>
-                {c.label}
-              </span>
-              {v === task.status && <Check className="w-3.5 h-3.5 text-accent shrink-0" />}
-            </button>
-          ))}
+          {columns.map((col) => {
+            const isCurrent = col.id === task.columnId
+            return (
+              <button
+                key={col.id}
+                onClick={() => { if (!isCurrent) onUpdate({ columnId: col.id }); setOpen(false) }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-bg-subtle transition-colors"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: columnVisual(col).bg }}
+                />
+                <span className={cn('flex-1 text-left text-fg', isCurrent && 'font-medium')}>
+                  {col.name}
+                </span>
+                {isCurrent && <Check className="w-3.5 h-3.5 text-accent shrink-0" />}
+              </button>
+            )
+          })}
         </div>
       )}
     </div>
@@ -1867,6 +1907,7 @@ function LabelsField({ task, labels, projectId, onUpdate }: {
   projectId: string
   onUpdate: (dto: UpdateTaskDto) => void
 }) {
+  const { t: tr } = useTranslation()
   const qc = useQueryClient()
   const [open, setOpen] = useState(false)
   const [newName, setNewName] = useState('')
@@ -1945,7 +1986,7 @@ function LabelsField({ task, labels, projectId, onUpdate }: {
           {/* Existing labels */}
           <div className="max-h-40 overflow-y-auto">
             {labels.length === 0 && !creating && (
-              <p className="px-3 py-2 text-xs text-fg-muted">Chưa có label nào</p>
+              <p className="px-3 py-2 text-xs text-fg-muted">{tr('taskDetail.noLabels')}</p>
             )}
             {labels.map(l => {
               const active = labelIds.includes(l.id)
@@ -1971,7 +2012,7 @@ function LabelsField({ task, labels, projectId, onUpdate }: {
                 value={newName}
                 onChange={e => setNewName(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') createLabel(); if (e.key === 'Escape') setCreating(false) }}
-                placeholder="Tên label..."
+                placeholder={tr('taskDetail.labelPlaceholder')}
                 className="w-full text-sm bg-bg-elevated border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-accent text-fg placeholder:text-fg-muted"
               />
               <div className="flex gap-1 flex-wrap">
@@ -1990,10 +2031,10 @@ function LabelsField({ task, labels, projectId, onUpdate }: {
                   disabled={!newName.trim()}
                   className="flex-1 text-xs py-1 rounded-md bg-accent text-white disabled:opacity-40"
                 >
-                  Tạo
+                  {tr('common.create')}
                 </button>
                 <button onClick={() => setCreating(false)} className="text-xs py-1 px-2 rounded-md border border-border text-fg-muted hover:text-fg">
-                  Hủy
+                  {tr('common.cancel')}
                 </button>
               </div>
             </div>
@@ -2002,7 +2043,7 @@ function LabelsField({ task, labels, projectId, onUpdate }: {
               onClick={() => setCreating(true)}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-fg-muted border-t border-border hover:bg-bg-subtle"
             >
-              <Plus className="w-3 h-3" /> Tạo label mới
+              <Plus className="w-3 h-3" /> {tr('taskDetail.createLabel')}
             </button>
           )}
         </div>
@@ -2134,6 +2175,7 @@ function DueDateField({ task, onUpdate }: { task: Task; onUpdate: (dto: UpdateTa
 // ─── Time Tracking Field ──────────────────────────────────────────────────────
 
 function TimeTrackingField({ task, projectId }: { task: Task; projectId: string }) {
+  const { t: tr } = useTranslation()
   const [showModal, setShowModal] = useState(false)
   const [timeInput, setTimeInput] = useState('')
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10))
@@ -2182,7 +2224,7 @@ function TimeTrackingField({ task, projectId }: { task: Task; projectId: string 
       setTimeInput(''); setDescription(''); setManualRemaining('')
       setShowModal(false)
     },
-    onError: () => toast.error('Log time thất bại'),
+    onError: () => toast.error(tr('taskDetail.logTimeFailed')),
   })
 
   const logTime = () => {
@@ -2332,6 +2374,7 @@ function TimeTrackingField({ task, projectId }: { task: Task; projectId: string 
 // ─── Start Date Field ─────────────────────────────────────────────────────────
 
 function StartDateField({ task, onUpdate }: { task: Task; onUpdate: (dto: UpdateTaskDto) => void }) {
+  const { t: tr } = useTranslation()
   const toast = useToast()
 
   return (
@@ -2342,7 +2385,7 @@ function StartDateField({ task, onUpdate }: { task: Task; onUpdate: (dto: Update
       onChange={(e) => {
         const val = e.target.value
         if (task.dueDate && val > task.dueDate.slice(0, 10)) {
-          toast.error('Start date không được sau due date')
+          toast.error(tr('taskDetail.startAfterDue'))
           e.target.value = (task as Task & { startDate?: string }).startDate?.slice(0, 10) ?? ''
           return
         }
@@ -2356,6 +2399,7 @@ function StartDateField({ task, onUpdate }: { task: Task; onUpdate: (dto: Update
 // ─── Create Branch Panel ──────────────────────────────────────────────────────
 
 function CreateBranchPanel({ task }: { task: Task }) {
+  const { t: tr } = useTranslation()
   const [expanded, setExpanded] = useState(false)
   const [copied, setCopied] = useState(false)
   const toast = useToast()
@@ -2373,7 +2417,7 @@ function CreateBranchPanel({ task }: { task: Task }) {
   const copyCommand = () => {
     navigator.clipboard.writeText(command)
     setCopied(true)
-    toast.success('Đã copy lệnh')
+    toast.success(tr('taskDetail.commandCopied'))
     setTimeout(() => setCopied(false), 2000)
   }
 

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Shield, Plus, Pencil, Trash2, Check, Lock, X } from 'lucide-react'
 import { rolesApi, type Role, type PermissionDef, type RoleInput } from '@/api/roles'
@@ -21,6 +22,7 @@ function groupByCategory(perms: PermissionDef[]): { category: string; items: Per
 }
 
 export function RolesPermissionsPage() {
+  const { t } = useTranslation()
   const isAdmin = useHasPermission('manage_roles')
   const qc = useQueryClient()
   const toast = useToast()
@@ -62,7 +64,7 @@ export function RolesPermissionsPage() {
     },
     onError: (_e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(['roles'], ctx.prev)
-      toast.error('Cập nhật phân quyền thất bại')
+      toast.error(t('roles.permissionsUpdateFailed'))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['roles'] }),
   })
@@ -71,10 +73,10 @@ export function RolesPermissionsPage() {
     mutationFn: (id: string) => rolesApi.remove(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['roles'] })
-      toast.success('Đã xóa role')
+      toast.success(t('roles.deleted'))
       setDeleteTarget(null)
     },
-    onError: () => toast.error('Không thể xóa role'),
+    onError: () => toast.error(t('roles.deleteFailed')),
   })
 
   const togglePermission = (role: Role, permKey: string) => {
@@ -95,30 +97,30 @@ export function RolesPermissionsPage() {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-fg">Roles & Permissions</h1>
-          <p className="text-xs text-fg-muted mt-0.5">Quản lý vai trò và phân quyền trong workspace</p>
+          <h1 className="text-base font-semibold text-fg">{t('pages.roles')}</h1>
+          <p className="text-xs text-fg-muted mt-0.5">{t('pages.rolesSubtitle')}</p>
         </div>
         {tab === 'roles' && isAdmin && (
           <Button variant="primary" size="sm" onClick={() => setCreating(true)}>
-            <Plus className="w-4 h-4" /> Tạo role mới
+            <Plus className="w-4 h-4" /> {t('roles.createRole')}
           </Button>
         )}
       </div>
 
       {/* Tabs */}
       <div className="flex items-center gap-1 px-6 pt-3 border-b border-border shrink-0">
-        {(['roles', 'permissions'] as Tab[]).map((t) => (
+        {(['roles', 'permissions'] as Tab[]).map((tabKey) => (
           <button
-            key={t}
-            onClick={() => setTab(t)}
+            key={tabKey}
+            onClick={() => setTab(tabKey)}
             className={cn(
               'px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
-              tab === t
+              tab === tabKey
                 ? 'border-accent text-accent'
                 : 'border-transparent text-fg-muted hover:text-fg',
             )}
           >
-            {t === 'roles' ? 'Roles' : 'Permissions'}
+            {tabKey === 'roles' ? t('roles.tabRoles') : t('roles.tabPermissions')}
           </button>
         ))}
       </div>
@@ -158,9 +160,9 @@ export function RolesPermissionsPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && deleteRole(deleteTarget.id)}
-        title="Xóa role"
-        message={deleteTarget ? <>Xóa role <span className="font-medium text-fg">"{deleteTarget.name}"</span>? Hành động này không thể hoàn tác.</> : null}
-        confirmLabel="Xóa role"
+        title={t('roles.deleteTitle')}
+        message={deleteTarget ? t('roles.deleteMsg', { name: deleteTarget.name }) : null}
+        confirmLabel={t('roles.deleteConfirm')}
         loading={deletingRole}
       />
     </div>
@@ -178,8 +180,9 @@ function RolesTab({
   onEdit: (r: Role) => void
   onDelete: (r: Role) => void
 }) {
+  const { t } = useTranslation()
   if (roles.length === 0) {
-    return <EmptyState icon={<Shield className="w-12 h-12" />} title="Chưa có role nào" />
+    return <EmptyState icon={<Shield className="w-12 h-12" />} title={t('roles.emptyTitle')} />
   }
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -194,18 +197,18 @@ function RolesTab({
                 <p className="text-sm font-semibold text-fg truncate">{role.name}</p>
                 {role.isSystem && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-fg-subtle">
-                    <Lock className="w-2.5 h-2.5" /> Hệ thống
+                    <Lock className="w-2.5 h-2.5" /> {t('roles.system')}
                   </span>
                 )}
               </div>
             </div>
             {isAdmin && (
               <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => onEdit(role)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title="Sửa">
+                <button onClick={() => onEdit(role)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title={t('roles.edit')}>
                   <Pencil className="w-3.5 h-3.5" />
                 </button>
                 {!role.isSystem && (
-                  <button onClick={() => onDelete(role)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title="Xóa">
+                  <button onClick={() => onDelete(role)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title={t('roles.delete')}>
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
@@ -217,7 +220,7 @@ function RolesTab({
           )}
           <div className="mt-3 pt-3 border-t border-border">
             <p className="text-xs text-fg-subtle">
-              {role.permissions.length}/{permissions.length} quyền được cấp
+              {t('roles.grantedCount', { granted: role.permissions.length, total: permissions.length })}
             </p>
           </div>
         </div>
@@ -236,8 +239,9 @@ function PermissionsMatrix({
   isAdmin: boolean
   onToggle: (role: Role, permKey: string) => void
 }) {
+  const { t } = useTranslation()
   if (roles.length === 0) {
-    return <EmptyState icon={<Shield className="w-12 h-12" />} title="Chưa có role nào" />
+    return <EmptyState icon={<Shield className="w-12 h-12" />} title={t('roles.emptyTitle')} />
   }
   return (
     <div className="rounded-card border border-border overflow-hidden">
@@ -246,7 +250,7 @@ function PermissionsMatrix({
           <thead>
             <tr className="bg-bg-subtle">
               <th className="sticky left-0 z-10 bg-bg-subtle text-left font-semibold text-fg px-4 py-3 min-w-[220px]">
-                Permission
+                {t('roles.permissionHeader')}
               </th>
               {roles.map((r) => (
                 <th key={r.id} className="px-3 py-3 text-center font-semibold text-fg whitespace-nowrap min-w-[88px]">
@@ -324,6 +328,7 @@ function RoleFormModal({
   groups: { category: string; items: PermissionDef[] }[]
   onClose: () => void
 }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const isEdit = !!role
@@ -351,12 +356,12 @@ function RoleFormModal({
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['roles'] })
-      toast.success(isEdit ? 'Đã cập nhật role' : 'Đã tạo role mới')
+      toast.success(isEdit ? t('roles.updated') : t('roles.created'))
       onClose()
     },
     onError: (err) => {
       const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message
-      toast.error(Array.isArray(msg) ? msg[0] : msg || 'Lưu role thất bại')
+      toast.error(Array.isArray(msg) ? msg[0] : msg || t('roles.saveFailed'))
     },
   })
 
@@ -364,33 +369,33 @@ function RoleFormModal({
   const nameLocked = isEdit && role?.isSystem
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? `Chỉnh sửa role` : 'Tạo role mới'} size="lg">
+    <Modal open={open} onClose={onClose} title={isEdit ? t('roles.editTitle') : t('roles.createRole')} size="lg">
       <div className="flex flex-col" style={{ maxHeight: '75vh' }}>
         <div className="px-5 pt-4 pb-3 space-y-3 border-b border-border shrink-0">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-fg-muted">Tên role</label>
+            <label className="text-xs font-medium text-fg-muted">{t('roles.nameLabel')}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={nameLocked}
-              placeholder="VD: Reviewer"
+              placeholder={t('roles.namePlaceholder')}
               className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent disabled:opacity-60 disabled:cursor-not-allowed"
             />
-            {nameLocked && <p className="text-[11px] text-fg-subtle">Role hệ thống không thể đổi tên, nhưng vẫn chỉnh được quyền.</p>}
+            {nameLocked && <p className="text-[11px] text-fg-subtle">{t('roles.systemLocked')}</p>}
           </div>
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-fg-muted">Mô tả</label>
+            <label className="text-xs font-medium text-fg-muted">{t('roles.descLabel')}</label>
             <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Mô tả ngắn về role này..."
+              placeholder={t('roles.descPlaceholder')}
               className="w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto scrollbar-thin px-5 py-3 space-y-4">
-          <p className="text-xs font-medium text-fg-muted">Phân quyền ({selected.size})</p>
+          <p className="text-xs font-medium text-fg-muted">{t('roles.permissionsCount', { count: selected.size })}</p>
           {groups.map((g) => (
             <div key={g.category}>
               <p className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle mb-1.5">{g.category}</p>
@@ -426,9 +431,9 @@ function RoleFormModal({
         </div>
 
         <div className="px-5 py-4 border-t border-border shrink-0 flex justify-end gap-3">
-          <Button variant="ghost" size="sm" onClick={onClose}>Hủy</Button>
+          <Button variant="ghost" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
           <Button variant="primary" size="sm" loading={isPending} disabled={!valid} onClick={() => submit()}>
-            {isEdit ? 'Lưu thay đổi' : 'Tạo role'}
+            {isEdit ? t('roles.saveChanges') : t('roles.createBtn')}
           </Button>
         </div>
       </div>

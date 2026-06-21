@@ -41,9 +41,9 @@ describe('TypeBadge', () => {
 
 describe('StatusBadge', () => {
   it.each([
-    ['todo', 'Todo'],
-    ['in_progress', 'In Progress'],
-    ['in_review', 'In Review'],
+    ['todo', 'To do'],
+    ['in_progress', 'In progress'],
+    ['in_review', 'In review'],
     ['done', 'Done'],
   ])('renders %s status', (status, label) => {
     render(<StatusBadge status={status} />)

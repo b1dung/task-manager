@@ -16,13 +16,14 @@ import { notificationsApi } from '@/api/notifications'
 import { authApi } from '@/api/auth'
 import { Avatar, Button, Input, Modal, Tooltip } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
+import { useTranslation } from 'react-i18next'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 interface NavItem {
   to: string
   icon: LucideIcon
-  label: string
+  labelKey: string
   /** When set, link to this absolute path instead of the project-scoped route. */
   absolutePath?: string
   requiresProject?: boolean
@@ -30,45 +31,45 @@ interface NavItem {
   badge?: boolean
 }
 
-const NAV_GROUPS: { title: string; items: NavItem[] }[] = [
+const NAV_GROUPS: { titleKey: string; items: NavItem[] }[] = [
   {
-    title: 'Overview',
+    titleKey: 'nav.overview',
     items: [
-      { to: 'summary', icon: LayoutDashboard, label: 'Summary' },
+      { to: 'summary', icon: LayoutDashboard, labelKey: 'nav.summary' },
     ],
   },
   {
-    title: 'Work',
+    titleKey: 'nav.work',
     items: [
-      { to: 'my-tasks', icon: ListChecks, label: 'My Tasks', absolutePath: '/my-tasks' },
-      { to: 'tasks', icon: LayoutGrid, label: 'Board' },
-      { to: 'calendar', icon: Calendar, label: 'Calendar' },
-      { to: 'attachments', icon: Paperclip, label: 'Attachments' },
-      { to: 'archived', icon: Archive, label: 'Archived', requiresProject: true, requiresPermission: 'approve_task' },
+      { to: 'my-tasks', icon: ListChecks, labelKey: 'nav.myTasks', absolutePath: '/my-tasks' },
+      { to: 'tasks', icon: LayoutGrid, labelKey: 'nav.board' },
+      { to: 'calendar', icon: Calendar, labelKey: 'nav.calendar' },
+      { to: 'attachments', icon: Paperclip, labelKey: 'nav.attachments' },
+      { to: 'archived', icon: Archive, labelKey: 'nav.archived', requiresProject: true, requiresPermission: 'approve_task' },
     ],
   },
   {
-    title: 'Insights',
+    titleKey: 'nav.insights',
     items: [
-      { to: 'reports', icon: BarChart2, label: 'Reports' },
-      { to: 'developer-report', icon: Gauge, label: 'Dev Report' },
+      { to: 'reports', icon: BarChart2, labelKey: 'nav.reports' },
+      { to: 'developer-report', icon: Gauge, labelKey: 'nav.developerReport' },
     ],
   },
   {
-    title: 'Collaboration',
+    titleKey: 'nav.collaboration',
     items: [
-      { to: 'team', icon: Users, label: 'Team', requiresProject: true },
-      { to: 'notifications', icon: Bell, label: 'Notifications', requiresProject: true, badge: true },
-      { to: 'activity', icon: Activity, label: 'Activity', requiresProject: true },
+      { to: 'team', icon: Users, labelKey: 'nav.team', requiresProject: true },
+      { to: 'notifications', icon: Bell, labelKey: 'nav.notifications', requiresProject: true, badge: true },
+      { to: 'activity', icon: Activity, labelKey: 'nav.activity', requiresProject: true },
     ],
   },
   {
-    title: 'Administration',
+    titleKey: 'nav.administration',
     items: [
-      { to: 'manage-projects', icon: FolderCog, label: 'Project Management', absolutePath: '/manage-projects', requiresPermission: 'delete_project' },
-      { to: 'users', icon: UserCog, label: 'User Management', absolutePath: '/users', requiresPermission: 'manage_users' },
-      { to: 'roles', icon: ShieldCheck, label: 'Roles & Permissions', absolutePath: '/roles', requiresPermission: 'manage_roles' },
-      { to: 'settings', icon: SettingsIcon, label: 'Settings', requiresProject: true, requiresPermission: 'edit_project' },
+      { to: 'manage-projects', icon: FolderCog, labelKey: 'nav.projectManagement', absolutePath: '/manage-projects', requiresPermission: 'delete_project' },
+      { to: 'users', icon: UserCog, labelKey: 'nav.userManagement', absolutePath: '/users', requiresPermission: 'manage_users' },
+      { to: 'roles', icon: ShieldCheck, labelKey: 'nav.rolesPermissions', absolutePath: '/roles', requiresPermission: 'manage_roles' },
+      { to: 'settings', icon: SettingsIcon, labelKey: 'nav.settings', requiresProject: true, requiresPermission: 'edit_project' },
     ],
   },
 ]
@@ -89,6 +90,7 @@ function ProjectDropdown({
   onCreateProject: () => void
   canCreate: boolean
 }) {
+  const { t } = useTranslation()
   const [open, setOpen] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
@@ -128,7 +130,7 @@ function ProjectDropdown({
   if (collapsed) {
     return (
       <div className="px-1.5 py-2 border-b border-border">
-        <Tooltip content={current?.name ?? 'Select project'} side="right">
+        <Tooltip content={current?.name ?? t('nav.selectProject')} side="right">
           <button
             onClick={() => current && navigate(`/projects/${current.id}/tasks`)}
             className="flex w-full items-center justify-center rounded-lg p-2 hover:bg-bg-subtle transition-colors"
@@ -168,7 +170,7 @@ function ProjectDropdown({
             <Folder className="h-4 w-4 shrink-0 text-fg-subtle" />
           )}
           <span className="flex-1 truncate text-left text-sm font-medium text-fg">
-            {current?.name ?? 'My Projects'}
+            {current?.name ?? t('nav.myProjects')}
           </span>
           {open
             ? <ChevronUp className="h-3 w-3 shrink-0 text-fg-subtle" />
@@ -176,11 +178,11 @@ function ProjectDropdown({
         </button>
 
         {canCreate && (
-          <Tooltip content="Tạo project mới" side="right">
+          <Tooltip content={t('nav.createProject')} side="right">
             <button
               onClick={(e) => { e.stopPropagation(); onCreateProject() }}
               className="shrink-0 rounded-lg p-1.5 text-fg-subtle hover:text-fg hover:bg-bg-subtle transition-colors"
-              title="Tạo project mới"
+              title={t('nav.createProject')}
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
@@ -191,7 +193,7 @@ function ProjectDropdown({
       {open && (
         <div className="absolute left-1.5 right-1.5 top-full z-50 mt-1 overflow-hidden rounded-xl border border-border bg-bg-surface shadow-app-md">
           {projects.length === 0 && (
-            <p className="px-3 py-2 text-sm text-fg-muted">Chưa có project nào</p>
+            <p className="px-3 py-2 text-sm text-fg-muted">{t('nav.noProjects')}</p>
           )}
           {projects.map((p) => (
             <button
@@ -225,7 +227,7 @@ function ProjectDropdown({
                 className="flex w-full items-center gap-2.5 px-3 py-2 text-accent hover:bg-bg-subtle transition-colors"
               >
                 <Plus className="h-4 w-4" />
-                <span className="text-sm">Tạo project mới</span>
+                <span className="text-sm">{t('nav.createProject')}</span>
               </button>
             </div>
           )}
@@ -256,6 +258,7 @@ function slugify(name: string) {
 }
 
 function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const toast = useToast()
@@ -285,28 +288,28 @@ function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => v
       }),
     onSuccess: (p) => {
       qc.invalidateQueries({ queryKey: ['projects'] })
-      toast.success('Đã tạo project')
+      toast.success(t('projects.created'))
       reset()
       setColor(PALETTE[0])
       onClose()
       navigate(`/projects/${p.id}/tasks`)
     },
-    onError: () => toast.error('Tạo project thất bại'),
+    onError: () => toast.error(t('projects.createFailed')),
   })
 
   const handleClose = () => { reset(); setColor(PALETTE[0]); onClose() }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Tạo project mới" size="sm">
+    <Modal open={open} onClose={handleClose} title={t('projects.createTitle')} size="sm">
       <form onSubmit={handleSubmit((d) => createProject(d))} className="space-y-4 p-5">
         <div>
-          <label className="mb-1 block text-xs font-medium text-fg-muted">Tên *</label>
+          <label className="mb-1 block text-xs font-medium text-fg-muted">{t('projects.name')} *</label>
           <Input
             {...register('name', {
               required: 'Tên bắt buộc',
               minLength: { value: 2, message: 'Tối thiểu 2 ký tự' },
             })}
-            placeholder="VD: Website Redesign"
+            placeholder={t('projects.namePlaceholder')}
           />
           {errors.name && <p className="mt-1 text-xs text-danger">{errors.name.message}</p>}
         </div>
@@ -328,8 +331,8 @@ function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => v
         </div>
 
         <div>
-          <label className="mb-1 block text-xs font-medium text-fg-muted">Mô tả</label>
-          <Input {...register('description')} placeholder="Mô tả ngắn về project..." />
+          <label className="mb-1 block text-xs font-medium text-fg-muted">{t('projects.description')}</label>
+          <Input {...register('description')} placeholder={t('projects.descriptionPlaceholder')} />
         </div>
 
         <div>
@@ -351,8 +354,8 @@ function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => v
         </div>
 
         <div className="flex justify-end gap-2 pt-2">
-          <Button variant="ghost" type="button" onClick={handleClose}>Hủy</Button>
-          <Button variant="primary" type="submit" loading={isPending}>Tạo</Button>
+          <Button variant="ghost" type="button" onClick={handleClose}>{t('common.cancel')}</Button>
+          <Button variant="primary" type="submit" loading={isPending}>{t('common.create')}</Button>
         </div>
       </form>
     </Modal>
@@ -362,6 +365,7 @@ function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => v
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 
 export function Sidebar() {
+  const { t } = useTranslation()
   const { projectId } = useParams()
   const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
@@ -427,14 +431,15 @@ export function Sidebar() {
             )
             if (items.length === 0) return null
             return (
-              <div key={group.title} className={gi > 0 ? 'mt-3' : ''}>
+              <div key={group.titleKey} className={gi > 0 ? 'mt-3' : ''}>
                 {sidebarCollapsed
                   ? gi > 0 && <div className="mx-2 mb-2 h-px bg-border" />
-                  : <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">{group.title}</p>}
+                  : <p className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-fg-subtle">{t(group.titleKey)}</p>}
 
                 <div className="space-y-0.5">
-                  {items.map(({ to, icon: Icon, label, badge, absolutePath }) => {
+                  {items.map(({ to, icon: Icon, labelKey, badge, absolutePath }) => {
                     const href = absolutePath ?? (projectId ? `/projects/${projectId}/${to}` : '/projects')
+                    const label = t(labelKey)
                     return (
                       <Tooltip key={to} content={label} side="right" disabled={!sidebarCollapsed}>
                         <NavLink to={href} className={({ isActive }) => navCls(isActive)}>
@@ -466,7 +471,7 @@ export function Sidebar() {
           >
             {sidebarCollapsed
               ? <ChevronRight className="h-4 w-4" />
-              : <><ChevronLeft className="h-4 w-4" /><span>Collapse</span></>}
+              : <><ChevronLeft className="h-4 w-4" /><span>{t('nav.collapse')}</span></>}
           </button>
 
           {user && (
@@ -486,13 +491,13 @@ export function Sidebar() {
                 </button>
               </Tooltip>
 
-              <Tooltip content="Đăng xuất" side="right">
+              <Tooltip content={t('nav.logout')} side="right">
                 <button
                   onClick={handleLogout}
                   className={cn(
                     'flex shrink-0 items-center justify-center rounded-lg p-2 text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors',
                   )}
-                  title="Đăng xuất"
+                  title={t('nav.logout')}
                 >
                   <LogOut className="h-3.5 w-3.5" />
                 </button>

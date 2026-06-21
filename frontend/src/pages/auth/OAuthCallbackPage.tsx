@@ -2,8 +2,10 @@ import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { authApi } from '@/api/auth'
 import { useAuthStore } from '@/stores/useAuthStore'
+import { useTranslation } from 'react-i18next'
 
 export function OAuthCallbackPage() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -22,5 +24,5 @@ export function OAuthCallbackPage() {
       .catch(() => navigate('/login', { replace: true }))
   }, [navigate])
 
-  return <div className="flex min-h-full items-center justify-center text-sm text-fg-muted">Đang đăng nhập…</div>
+  return <div className="flex min-h-full items-center justify-center text-sm text-fg-muted">{t('auth.signingIn')}</div>
 }

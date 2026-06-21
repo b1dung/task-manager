@@ -126,7 +126,7 @@ describe('TaskCard', () => {
   })
 
   const fmtDate = (iso: string) =>
-    new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    new Date(iso).toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' })
 
   it('shows due date when provided', () => {
     const due = '2026-12-31T00:00:00.000Z'
@@ -224,17 +224,17 @@ describe('TaskCard', () => {
   it('shows + placeholder when no assignee', () => {
     const task = { ...baseTask, assigneeId: null, assignee: null }
     renderCard(task)
-    expect(screen.getByTitle('Gán assignee')).toBeInTheDocument()
+    expect(screen.getByTitle('Assign')).toBeInTheDocument()
   })
 
   it('shows assignee avatar with tooltip when assigned', () => {
     renderCard(baseTask) // baseTask has assignee Alice
-    expect(screen.getByTitle('Alice — đổi assignee')).toBeInTheDocument()
+    expect(screen.getByTitle('Alice — change assignee')).toBeInTheDocument()
   })
 
   it('opens member list dropdown on assignee click', async () => {
     renderCard(baseTask)
-    fireEvent.click(screen.getByTitle('Alice — đổi assignee'))
+    fireEvent.click(screen.getByTitle('Alice — change assignee'))
     await waitFor(() => {
       expect(screen.getByText('Bob')).toBeInTheDocument()
     })
@@ -243,7 +243,7 @@ describe('TaskCard', () => {
   it('calls tasksApi.update with new assigneeId when member selected', async () => {
     const { tasksApi } = await import('@/api/tasks')
     renderCard(baseTask)
-    fireEvent.click(screen.getByTitle('Alice — đổi assignee'))
+    fireEvent.click(screen.getByTitle('Alice — change assignee'))
     await waitFor(() => expect(screen.getByText('Bob')).toBeInTheDocument())
     fireEvent.click(screen.getByText('Bob'))
     await waitFor(() => {
@@ -254,9 +254,9 @@ describe('TaskCard', () => {
   it('calls tasksApi.update with null when "Bỏ gán" clicked', async () => {
     const { tasksApi } = await import('@/api/tasks')
     renderCard(baseTask)
-    fireEvent.click(screen.getByTitle('Alice — đổi assignee'))
-    await waitFor(() => expect(screen.getByText('Bỏ gán')).toBeInTheDocument())
-    fireEvent.click(screen.getByText('Bỏ gán'))
+    fireEvent.click(screen.getByTitle('Alice — change assignee'))
+    await waitFor(() => expect(screen.getByText('Unassign')).toBeInTheDocument())
+    fireEvent.click(screen.getByText('Unassign'))
     await waitFor(() => {
       expect(tasksApi.update).toHaveBeenCalledWith('proj-1', 'task-1', { assigneeId: null })
     })

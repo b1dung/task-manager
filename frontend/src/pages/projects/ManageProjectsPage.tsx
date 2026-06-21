@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -20,6 +21,7 @@ function apiErrorMessage(err: unknown, fallback: string): string {
 }
 
 export function ManageProjectsPage() {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
@@ -49,8 +51,8 @@ export function ManageProjectsPage() {
 
   const { mutate: archive, isPending: archiving } = useMutation({
     mutationFn: ({ id, archived }: { id: string; archived: boolean }) => projectsApi.manageArchive(id, archived),
-    onSuccess: (_d, v) => { invalidate(); setArchiveTarget(null); toast.success(v.archived ? 'Đã lưu trữ dự án' : 'Đã khôi phục dự án') },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Thao tác thất bại')),
+    onSuccess: (_d, v) => { invalidate(); setArchiveTarget(null); toast.success(v.archived ? t('manageProjects.archivedProject') : t('manageProjects.restoredProject')) },
+    onError: (err) => toast.error(apiErrorMessage(err, t('manageProjects.actionFailed'))),
   })
 
   const { mutate: removeProject, isPending: deleting } = useMutation({
@@ -58,21 +60,21 @@ export function ManageProjectsPage() {
     onSuccess: (p) => {
       invalidate()
       setDeleteTarget(null)
-      toast.undo(`Đã xóa dự án "${p.name}"`, () => {
+      toast.undo(t('manageProjects.deletedProject', { name: p.name }), () => {
         projectsApi.manageRestore(p.id)
-          .then(() => { invalidate(); toast.success('Đã hoàn lại dự án') })
-          .catch(() => toast.error('Hoàn tác thất bại'))
+          .then(() => { invalidate(); toast.success(t('manageProjects.projectRestored')) })
+          .catch(() => toast.error(t('manageProjects.undoFailed')))
       })
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể xóa dự án')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('manageProjects.deleteFailed'))),
   })
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-fg">Quản lý dự án</h1>
-          <p className="text-xs text-fg-muted mt-0.5">{projects.length} dự án trong hệ thống</p>
+          <h1 className="text-base font-semibold text-fg">{t('nav.projectManagement')}</h1>
+          <p className="text-xs text-fg-muted mt-0.5">{t('pages.projectManagementSubtitle', { count: projects.length })}</p>
         </div>
         <div className="flex items-center gap-2">
           <div className="relative">
@@ -80,13 +82,13 @@ export function ManageProjectsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Tìm theo tên hoặc slug..."
+              placeholder={t('filter.searchNameSlug')}
               className="h-8 w-56 pl-8 pr-3 rounded-lg border border-border bg-bg-elevated text-xs text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
           {canCreate && (
             <Button variant="primary" size="sm" onClick={() => setShowCreate(true)}>
-              <Plus className="w-4 h-4" /> Tạo dự án
+              <Plus className="w-4 h-4" /> {t('manageProjects.create')}
             </Button>
           )}
         </div>
@@ -98,18 +100,18 @@ export function ManageProjectsPage() {
             {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
           </div>
         ) : filtered.length === 0 ? (
-          <EmptyState icon={<Folder className="w-12 h-12" />} title="Không có dự án nào" />
+          <EmptyState icon={<Folder className="w-12 h-12" />} title={t('manageProjects.emptyTitle')} />
         ) : (
           <div className="rounded-card border border-border overflow-x-auto scrollbar-thin">
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-bg-subtle text-left text-xs text-fg-muted">
-                  <th className="px-4 py-2.5 font-semibold">Dự án</th>
-                  <th className="px-4 py-2.5 font-semibold">Trạng thái</th>
-                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">Task / Thành viên</th>
-                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">Hạn chót</th>
-                  <th className="px-4 py-2.5 font-semibold">Chủ sở hữu</th>
-                  <th className="px-4 py-2.5 font-semibold text-right">Thao tác</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('manageProjects.colProject')}</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('manageProjects.colStatus')}</th>
+                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">{t('manageProjects.colTaskMember')}</th>
+                  <th className="px-4 py-2.5 font-semibold whitespace-nowrap">{t('manageProjects.colDeadline')}</th>
+                  <th className="px-4 py-2.5 font-semibold">{t('manageProjects.colOwner')}</th>
+                  <th className="px-4 py-2.5 font-semibold text-right">{t('manageProjects.colActions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -133,7 +135,7 @@ export function ManageProjectsPage() {
                           'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium',
                           archived ? 'bg-warning/15 text-warning' : 'bg-success/15 text-success',
                         )}>
-                          {archived ? 'Đã lưu trữ' : 'Hoạt động'}
+                          {archived ? t('manageProjects.statusArchived') : t('manageProjects.statusActive')}
                         </span>
                       </td>
                       <td className="px-4 py-2.5 text-fg-muted whitespace-nowrap">
@@ -153,20 +155,20 @@ export function ManageProjectsPage() {
                       </td>
                       <td className="px-4 py-2.5 text-right">
                         <div className="inline-flex items-center gap-1">
-                          <button onClick={() => navigate(`/projects/${p.id}/tasks`)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title="Mở board">
+                          <button onClick={() => navigate(`/projects/${p.id}/tasks`)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title={t('manageProjects.openBoard')}>
                             <ExternalLink className="w-3.5 h-3.5" />
                           </button>
                           {canEdit && (
-                            <button onClick={() => setEditTarget(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title="Chỉnh sửa">
+                            <button onClick={() => setEditTarget(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title={t('manageProjects.edit')}>
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                           )}
                           {canEdit && (
-                            <button onClick={() => archived ? archive({ id: p.id, archived: false }) : setArchiveTarget(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title={archived ? 'Khôi phục' : 'Lưu trữ'}>
+                            <button onClick={() => archived ? archive({ id: p.id, archived: false }) : setArchiveTarget(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors" title={archived ? t('manageProjects.restore') : t('manageProjects.archive')}>
                               {archived ? <ArchiveRestore className="w-3.5 h-3.5" /> : <Archive className="w-3.5 h-3.5" />}
                             </button>
                           )}
-                          <button onClick={() => setDeleteTarget(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title="Xóa dự án">
+                          <button onClick={() => setDeleteTarget(p)} className="p-1.5 rounded-lg text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors" title={t('manageProjects.deleteProject')}>
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -187,17 +189,17 @@ export function ManageProjectsPage() {
         open={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => deleteTarget && removeProject(deleteTarget)}
-        title="Xóa dự án"
-        message={deleteTarget ? <>Bạn có chắc muốn xóa dự án <span className="font-medium text-fg">"{deleteTarget.name}"</span>? Bạn có 10 giây để hoàn tác sau khi xóa.</> : null}
+        title={t('manageProjects.deleteTitle')}
+        message={deleteTarget ? t('manageProjects.deleteMsg', { name: deleteTarget.name }) : null}
         warning={deleteTarget && (deleteTarget.taskCount ?? 0) > 0 ? (
           <div className="flex items-start gap-2 rounded-lg border border-warning/30 bg-warning/5 px-3 py-2.5 text-sm">
             <ListTodo className="w-4 h-4 text-warning mt-0.5 shrink-0" />
             <span className="text-fg-muted">
-              Dự án đang có <span className="font-medium text-fg">{deleteTarget.taskCount} task</span>. Đây là <span className="font-medium text-fg">xóa mềm</span> — dữ liệu được giữ lại và có thể hoàn tác.
+              {t('manageProjects.deleteWarning', { count: deleteTarget.taskCount ?? 0 })}
             </span>
           </div>
         ) : undefined}
-        confirmLabel="Xóa vĩnh viễn"
+        confirmLabel={t('manageProjects.deletePermanent')}
         requireText="delete"
         loading={deleting}
       />
@@ -206,9 +208,9 @@ export function ManageProjectsPage() {
         open={!!archiveTarget}
         onClose={() => setArchiveTarget(null)}
         onConfirm={() => archiveTarget && archive({ id: archiveTarget.id, archived: true })}
-        title="Lưu trữ dự án"
-        message={archiveTarget ? <>Lưu trữ dự án <span className="font-medium text-fg">"{archiveTarget.name}"</span>? Dự án sẽ bị ẩn khỏi mọi danh sách nhưng dữ liệu được giữ nguyên và có thể khôi phục.</> : null}
-        confirmLabel="Lưu trữ"
+        title={t('manageProjects.archiveTitle')}
+        message={archiveTarget ? t('manageProjects.archiveMsg', { name: archiveTarget.name }) : null}
+        confirmLabel={t('manageProjects.archive')}
         requireText="archive"
         danger={false}
         loading={archiving}
@@ -218,6 +220,7 @@ export function ManageProjectsPage() {
 }
 
 function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [name, setName] = useState('')
@@ -228,33 +231,34 @@ function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => v
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['manage-projects'] })
       qc.invalidateQueries({ queryKey: ['projects'] })
-      toast.success('Đã tạo dự án')
+      toast.success(t('manageProjects.createdProject'))
       setName(''); setDescription(''); onClose()
     },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Tạo dự án thất bại')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('manageProjects.createFailed'))),
   })
 
   return (
-    <Modal open={open} onClose={onClose} title="Tạo dự án mới" size="sm">
+    <Modal open={open} onClose={onClose} title={t('manageProjects.createTitle')} size="sm">
       <div className="px-5 py-4 space-y-4">
         <div>
-          <label className="mb-1 block text-xs font-medium text-fg-muted">Tên *</label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="VD: Website Redesign" />
+          <label className="mb-1 block text-xs font-medium text-fg-muted">{t('manageProjects.name')} *</label>
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t('manageProjects.namePlaceholder')} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-fg-muted">Mô tả</label>
-          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Mô tả ngắn..." />
+          <label className="mb-1 block text-xs font-medium text-fg-muted">{t('manageProjects.description')}</label>
+          <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder={t('manageProjects.descriptionPlaceholder')} />
         </div>
       </div>
       <div className="px-5 py-4 border-t border-border flex justify-end gap-3">
-        <Button variant="ghost" size="sm" onClick={onClose}>Hủy</Button>
-        <Button variant="primary" size="sm" loading={isPending} disabled={name.trim().length < 2} onClick={() => mutate()}>Tạo</Button>
+        <Button variant="ghost" size="sm" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button variant="primary" size="sm" loading={isPending} disabled={name.trim().length < 2} onClick={() => mutate()}>{t('manageProjects.create2')}</Button>
       </div>
     </Modal>
   )
 }
 
 function EditProjectModal({ project, onClose }: { project: ManagedProject; onClose: () => void }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [name, setName] = useState(project.name)
@@ -272,23 +276,23 @@ function EditProjectModal({ project, onClose }: { project: ManagedProject; onClo
       description: description.trim(),
       deadline: deadline ? new Date(deadline).toISOString() : null,
     }),
-    onSuccess: () => { invalidate(); toast.success('Đã lưu dự án'); onClose() },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Lưu dự án thất bại')),
+    onSuccess: () => { invalidate(); toast.success(t('manageProjects.savedProject')); onClose() },
+    onError: (err) => toast.error(apiErrorMessage(err, t('manageProjects.saveFailed'))),
   })
 
   return (
-    <Modal open onClose={onClose} title="Chỉnh sửa dự án" size="md">
+    <Modal open onClose={onClose} title={t('manageProjects.editTitle')} size="md">
       <div className="px-5 py-4 space-y-4 max-h-[65vh] overflow-y-auto scrollbar-thin">
         <div>
-          <label className="mb-1 block text-xs font-medium text-fg-muted">Tên *</label>
+          <label className="mb-1 block text-xs font-medium text-fg-muted">{t('manageProjects.name')} *</label>
           <Input value={name} onChange={(e) => setName(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 block text-xs font-medium text-fg-muted">Mô tả</label>
+          <label className="mb-1 block text-xs font-medium text-fg-muted">{t('manageProjects.description')}</label>
           <Input value={description} onChange={(e) => setDescription(e.target.value)} />
         </div>
         <div>
-          <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-fg-muted"><Calendar className="w-3.5 h-3.5" /> Hạn chót</label>
+          <label className="mb-1 flex items-center gap-1.5 text-xs font-medium text-fg-muted"><Calendar className="w-3.5 h-3.5" /> {t('manageProjects.deadline')}</label>
           <input
             type="date"
             value={deadline}
@@ -300,14 +304,15 @@ function EditProjectModal({ project, onClose }: { project: ManagedProject; onClo
         <MembersEditor projectId={project.id} />
       </div>
       <div className="px-5 py-4 border-t border-border flex justify-end gap-3">
-        <Button variant="ghost" size="sm" onClick={onClose}>Đóng</Button>
-        <Button variant="primary" size="sm" loading={isPending} disabled={name.trim().length < 2} onClick={() => save()}>Lưu thay đổi</Button>
+        <Button variant="ghost" size="sm" onClick={onClose}>{t('common.close')}</Button>
+        <Button variant="primary" size="sm" loading={isPending} disabled={name.trim().length < 2} onClick={() => save()}>{t('manageProjects.saveChanges')}</Button>
       </div>
     </Modal>
   )
 }
 
 function MembersEditor({ projectId }: { projectId: string }) {
+  const { t } = useTranslation()
   const qc = useQueryClient()
   const toast = useToast()
   const [search, setSearch] = useState('')
@@ -336,26 +341,26 @@ function MembersEditor({ projectId }: { projectId: string }) {
   const { mutate: add } = useMutation({
     mutationFn: (userId: string) => projectsApi.manageAddMember(projectId, userId),
     onSuccess: () => { refresh(); setSearch('') },
-    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể thêm thành viên')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('manageProjects.addMemberFailed'))),
   })
   const { mutate: remove } = useMutation({
     mutationFn: (userId: string) => projectsApi.manageRemoveMember(projectId, userId),
     onSuccess: refresh,
-    onError: (err) => toast.error(apiErrorMessage(err, 'Không thể xóa thành viên')),
+    onError: (err) => toast.error(apiErrorMessage(err, t('manageProjects.removeMemberFailed'))),
   })
 
   return (
     <div className="pt-2 border-t border-border">
       <div className="flex items-center justify-between mb-2">
-        <label className="flex items-center gap-1.5 text-xs font-medium text-fg-muted"><Users className="w-3.5 h-3.5" /> Thành viên ({members.length})</label>
+        <label className="flex items-center gap-1.5 text-xs font-medium text-fg-muted"><Users className="w-3.5 h-3.5" /> {t('manageProjects.membersLabel')} ({members.length})</label>
         <button onClick={() => setAdding((v) => !v)} className="inline-flex items-center gap-1 text-xs text-accent hover:underline">
-          <UserPlus className="w-3.5 h-3.5" /> Thêm
+          <UserPlus className="w-3.5 h-3.5" /> {t('manageProjects.add')}
         </button>
       </div>
 
       {adding && (
         <div className="mb-2 rounded-lg border border-border p-2">
-          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Tìm user theo tên/email..." />
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('filter.searchNameEmail')} />
           {candidates.length > 0 && (
             <ul className="mt-1.5 space-y-0.5 max-h-40 overflow-y-auto scrollbar-thin">
               {candidates.map((u) => (
@@ -383,7 +388,7 @@ function MembersEditor({ projectId }: { projectId: string }) {
                 <p className="text-fg truncate">{m.user.fullName}</p>
                 <p className="text-xs text-fg-subtle truncate">{m.role} · {m.user.email}</p>
               </div>
-              <button onClick={() => remove(m.userId)} className="p-1 rounded text-fg-muted hover:text-danger hover:bg-danger/10" title="Xóa khỏi dự án">
+              <button onClick={() => remove(m.userId)} className="p-1 rounded text-fg-muted hover:text-danger hover:bg-danger/10" title={t('manageProjects.removeFromProject')}>
                 <X className="w-3.5 h-3.5" />
               </button>
             </li>

@@ -20,6 +20,7 @@ import { Avatar, Button, Skeleton } from '@/components/ui'
 import { formatRelative, cn } from '@/lib/utils'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { DEFAULT_TIMEZONE, formatZonedDateTime } from '@/lib/timezones'
+import { useTranslation } from 'react-i18next'
 
 const TYPE_ICON: Record<string, ReactNode> = {
   task_created: <FilePlus2 className="w-3.5 h-3.5" />,
@@ -34,6 +35,7 @@ const TYPE_ICON: Record<string, ReactNode> = {
 }
 
 export function NotificationsDropdown() {
+  const { t } = useTranslation()
   const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -87,7 +89,7 @@ export function NotificationsDropdown() {
       <button
         onClick={() => setOpen((v) => !v)}
         className="relative inline-flex items-center justify-center w-9 h-9 rounded-lg text-fg-muted hover:bg-bg-elevated hover:text-fg transition-colors"
-        aria-label="Thông báo"
+        aria-label={t('notifications.title')}
       >
         <Bell className="w-4 h-4" />
         {unread > 0 && (
@@ -101,14 +103,14 @@ export function NotificationsDropdown() {
         <div className="absolute right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)] rounded-xl border border-border bg-bg-elevated shadow-popover overflow-hidden z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-sm font-semibold text-fg">
-              Thông báo{unread > 0 && <span className="text-fg-subtle font-normal"> · {unread} mới</span>}
+              {t('notifications.title')}{unread > 0 && <span className="text-fg-subtle font-normal"> · {t('notifications.newCount', { count: unread })}</span>}
             </span>
             {unread > 0 && (
               <button
                 onClick={() => markAll()}
                 className="flex items-center gap-1 text-xs text-accent hover:underline"
               >
-                <CheckCheck className="w-3.5 h-3.5" /> Đọc tất cả
+                <CheckCheck className="w-3.5 h-3.5" /> {t('notifications.markAll')}
               </button>
             )}
           </div>
@@ -121,7 +123,7 @@ export function NotificationsDropdown() {
             ) : notifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 py-10 text-fg-subtle">
                 <BellOff className="w-8 h-8" />
-                <span className="text-sm">Không có thông báo nào</span>
+                <span className="text-sm">{t('notifications.empty')}</span>
               </div>
             ) : (
               <div className="divide-y divide-border">
@@ -182,7 +184,7 @@ export function NotificationsDropdown() {
                 navigate('./notifications')
               }}
             >
-              Xem tất cả thông báo
+              {t('notifications.viewAll')}
             </Button>
           </div>
         </div>

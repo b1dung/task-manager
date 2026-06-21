@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter,
   type DragEndEvent,
@@ -14,6 +15,7 @@ import { Button } from '@/components/ui'
 import { cn } from '@/lib/utils'
 
 function SortableChip({ col, count }: { col: BoardColumn; count: number }) {
+  const { t } = useTranslation()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: col.id })
   return (
     <div
@@ -29,7 +31,7 @@ function SortableChip({ col, count }: { col: BoardColumn; count: number }) {
       <GripVertical className="w-4 h-4 text-fg-subtle shrink-0" />
       <div className="min-w-0 flex-1">
         <p className="text-sm font-medium text-fg truncate">{col.name}</p>
-        <p className="text-xs text-fg-subtle">{count} task</p>
+        <p className="text-xs text-fg-subtle">{t('board.tasksCount', { count })}</p>
       </div>
     </div>
   )
@@ -43,6 +45,7 @@ export function ColumnReorder({
   onReorder: (orderedIds: string[]) => void
   onDone: () => void
 }) {
+  const { t } = useTranslation()
   const [items, setItems] = useState(columns)
   useEffect(() => { setItems(columns) }, [columns])
 
@@ -66,9 +69,9 @@ export function ColumnReorder({
     <div className="flex flex-col flex-1 overflow-hidden">
       <div className="flex items-center justify-between gap-3 rounded-lg border border-accent/30 bg-accent/5 px-4 py-2.5 mb-3 shrink-0">
         <p className="text-sm text-fg">
-          <span className="font-medium">Chế độ sắp xếp cột</span> — kéo các cột để đổi vị trí.
+          <span className="font-medium">{t('board.reorderModeTitle')}</span> — {t('board.reorderModeHint')}
         </p>
-        <Button variant="primary" size="sm" onClick={onDone}><Check className="w-4 h-4" /> Xong</Button>
+        <Button variant="primary" size="sm" onClick={onDone}><Check className="w-4 h-4" /> {t('board.done')}</Button>
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleEnd}>
         <SortableContext items={items.map((c) => c.id)} strategy={horizontalListSortingStrategy}>

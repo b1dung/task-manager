@@ -9,7 +9,7 @@ export interface AuthUser {
   avatarUrl: string | null
   role: string
   /** Optional for sessions persisted before user preferences were introduced. */
-  language?: 'vi' | 'en'
+  language?: import('@/i18n').AppLanguage
   appearance?: 'light' | 'midnight' | 'mint'
   timezone?: import('@/lib/timezones').UserTimezone
 }
@@ -44,6 +44,17 @@ export const useAuthStore = create<AuthState>()(
         set({ user: null, accessToken: null, refreshToken: null, isAuthenticated: false })
       },
     }),
-    { name: 'auth-storage', partialize: (s) => ({ user: s.user, isAuthenticated: s.isAuthenticated }) },
+    {
+      name: 'auth-storage',
+      version: 1,
+      migrate: (persisted, version) => {
+        const state = persisted as { user?: AuthUser | null; isAuthenticated?: boolean }
+        if (version < 1 && state.user?.language === 'vi') {
+          return { ...state, user: { ...state.user, language: 'en' as const } }
+        }
+        return state
+      },
+      partialize: (s) => ({ user: s.user, isAuthenticated: s.isAuthenticated }),
+    },
   ),
 )

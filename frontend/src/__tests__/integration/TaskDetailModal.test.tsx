@@ -58,6 +58,17 @@ vi.mock('@/api/labels', () => ({
   },
 }))
 
+vi.mock('@/api/columns', () => ({
+  columnsApi: {
+    list: vi.fn().mockResolvedValue([
+      { id: 'col-1', projectId: 'proj-1', name: 'To Do', position: 0, color: null, wipLimit: null },
+      { id: 'col-2', projectId: 'proj-1', name: 'In Progress', position: 1, color: null, wipLimit: null },
+      { id: 'col-3', projectId: 'proj-1', name: 'In Review', position: 2, color: null, wipLimit: null },
+      { id: 'col-4', projectId: 'proj-1', name: 'Done', position: 3, color: null, wipLimit: null },
+    ]),
+  },
+}))
+
 vi.mock('@/api/client', () => ({
   apiClient: {
     get: mockApiGet,
@@ -258,7 +269,7 @@ describe('TaskDetailModal', () => {
       return (el?.closest('button') ?? el) as HTMLElement
     }
 
-    it('opens on click and shows all statuses', async () => {
+    it('opens on click and lists the project columns', async () => {
       renderModal()
       fireEvent.click(statusTrigger())
       await waitFor(() => {
@@ -268,12 +279,12 @@ describe('TaskDetailModal', () => {
       })
     })
 
-    it('selecting status calls tasksApi.update', async () => {
+    it('selecting a column moves the task via tasksApi.update', async () => {
       renderModal()
       fireEvent.click(statusTrigger())
       await waitFor(() => screen.getByText('In Progress'))
       await act(async () => { fireEvent.click(screen.getByText('In Progress')) })
-      await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith('proj-1', 'task-1', expect.objectContaining({ status: 'in_progress' })))
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith('proj-1', 'task-1', expect.objectContaining({ columnId: 'col-2' })))
     })
   })
 
@@ -347,13 +358,13 @@ describe('TaskDetailModal', () => {
     it('click Add subtask shows input', () => {
       renderModal()
       fireEvent.click(screen.getByText('Add subtask'))
-      expect(screen.getByPlaceholderText('Tên subtask...')).toBeInTheDocument()
+      expect(screen.getByPlaceholderText('Subtask name...')).toBeInTheDocument()
     })
 
     it('Enter in subtask input calls tasksApi.create with parentTaskId', async () => {
       renderModal()
       fireEvent.click(screen.getByText('Add subtask'))
-      const inp = screen.getByPlaceholderText('Tên subtask...')
+      const inp = screen.getByPlaceholderText('Subtask name...')
       await act(async () => { fireEvent.change(inp, { target: { value: 'My subtask' } }) })
       await act(async () => { fireEvent.keyDown(inp, { key: 'Enter' }) })
       expect(mockTaskCreate).toHaveBeenCalledWith('proj-1', expect.objectContaining({
@@ -437,7 +448,7 @@ describe('TaskDetailModal', () => {
     it('X button calls onClose', () => {
       const onClose = vi.fn()
       renderModal(mockTask, onClose)
-      fireEvent.click(screen.getByTitle('Đóng'))
+      fireEvent.click(screen.getByTitle('Close'))
       expect(onClose).toHaveBeenCalled()
     })
 

@@ -1,3 +1,5 @@
+import { appLocale } from '@/i18n'
+
 export const DEFAULT_TIMEZONE = 'Asia/Ho_Chi_Minh' as const
 
 export const TIMEZONE_OPTIONS = [
@@ -32,7 +34,7 @@ function dateValue(value: string | Date): Date {
 export function formatZonedDate(
   value: string | Date,
   timezone: UserTimezone,
-  locale = 'vi-VN',
+  locale = appLocale(),
   options: Intl.DateTimeFormatOptions = {},
 ): string {
   return new Intl.DateTimeFormat(locale, {
@@ -42,7 +44,7 @@ export function formatZonedDate(
   }).format(dateValue(value))
 }
 
-export function formatZonedDateTime(value: string | Date, timezone: UserTimezone, locale = 'vi-VN'): string {
+export function formatZonedDateTime(value: string | Date, timezone: UserTimezone, locale = appLocale()): string {
   return new Intl.DateTimeFormat(locale, {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit', hour12: false,
@@ -50,11 +52,11 @@ export function formatZonedDateTime(value: string | Date, timezone: UserTimezone
   }).format(dateValue(value))
 }
 
-export function currentTimePreview(timezone: UserTimezone, value = new Date()): string {
+export function currentTimePreview(timezone: UserTimezone, value = new Date(), label = 'Current time'): string {
   const time = new Intl.DateTimeFormat('en-GB', {
     hour: '2-digit', minute: '2-digit', hour12: false, timeZone: timezone,
   }).format(value)
-  return `Current time: ${time} ${timezone}`
+  return `${label}: ${time} ${timezone}`
 }
 
 export function todayInTimezone(timezone: UserTimezone, value = new Date()): string {

@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -20,12 +21,13 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 const SHORTCUTS = [
-  { label: 'Tuần này', days: 7 },
-  { label: 'Tháng này', days: 30 },
-  { label: '3 tháng', days: 90 },
+  { key: 'reports.thisWeek', days: 7 },
+  { key: 'reports.thisMonth', days: 30 },
+  { key: 'reports.threeMonths', days: 90 },
 ]
 
 export function ReportsPage() {
+  const { t } = useTranslation()
   const { projectId = '' } = useParams<{ projectId: string }>()
   const { reports, setReportFilter } = useFilterStore()
 
@@ -87,17 +89,17 @@ export function ReportsPage() {
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header + filters */}
       <div className="px-6 py-4 border-b border-border shrink-0">
-        <h1 className="text-base font-semibold text-fg mb-3">Reports</h1>
+        <h1 className="text-base font-semibold text-fg mb-3">{t('pages.reports')}</h1>
         <div className="flex flex-wrap items-center gap-2">
           {/* Shortcuts */}
           {SHORTCUTS.map((s) => (
             <Button
-              key={s.label}
+              key={s.days}
               variant={isShortcutActive(s.days) ? 'primary' : 'outline'}
               size="sm"
               onClick={() => applyShortcut(s.days)}
             >
-              {s.label}
+              {t(s.key)}
             </Button>
           ))}
 
@@ -124,7 +126,7 @@ export function ReportsPage() {
               onChange={(e) => setReportFilter({ userId: e.target.value || undefined })}
               className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
             >
-              <option value="">Tất cả thành viên</option>
+              <option value="">{t('filter.allMembers')}</option>
               {members.map((m) => <option key={m.userId} value={m.userId}>{m.user.fullName}</option>)}
             </select>
           )}
@@ -135,7 +137,7 @@ export function ReportsPage() {
               onChange={(e) => setReportFilter({ sprintId: e.target.value || undefined })}
               className="h-8 rounded-lg border border-border bg-bg-elevated px-2 text-xs text-fg focus:outline-none focus:ring-2 focus:ring-accent"
             >
-              <option value="">Tất cả sprint</option>
+              <option value="">{t('filter.allSprints')}</option>
               {sprints.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
           )}
@@ -149,9 +151,9 @@ export function ReportsPage() {
         {monthly && (
           <div className="xl:col-span-2 grid grid-cols-3 gap-4">
             {[
-              { label: 'Target Tasks', value: monthly.target, color: 'text-fg' },
-              { label: 'Actual Done', value: monthly.actual, color: 'text-success' },
-              { label: 'Completion Rate', value: `${monthly.completionRate}%`, color: 'text-accent' },
+              { label: t('reports.targetTasks'), value: monthly.target, color: 'text-fg' },
+              { label: t('reports.actualDone'), value: monthly.actual, color: 'text-success' },
+              { label: t('reports.completionRate'), value: `${monthly.completionRate}%`, color: 'text-accent' },
             ].map((kpi) => (
               <div key={kpi.label} className="rounded-card border border-border bg-bg-elevated p-4">
                 <p className="text-xs text-fg-muted">{kpi.label}</p>
@@ -162,7 +164,7 @@ export function ReportsPage() {
         )}
 
         {/* Weekly Bar Chart */}
-        <ChartCard title="Hoàn thành task (tuần này)" loading={weeklyLoading}>
+        <ChartCard title={t('reports.weeklyCompleted')} loading={weeklyLoading}>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={weekly ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -175,7 +177,7 @@ export function ReportsPage() {
         </ChartCard>
 
         {/* Productivity Line Chart */}
-        <ChartCard title="Năng suất (30 ngày)">
+        <ChartCard title={t('reports.productivity30')}>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={productivity ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -188,7 +190,7 @@ export function ReportsPage() {
         </ChartCard>
 
         {/* Completion Rate Donut */}
-        <ChartCard title="Tỷ lệ hoàn thành theo status">
+        <ChartCard title={t('reports.completionByStatus')}>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie
@@ -210,7 +212,7 @@ export function ReportsPage() {
         </ChartCard>
 
         {/* Working Hours Stacked Bar */}
-        <ChartCard title="Giờ làm việc (Estimated vs Logged)">
+        <ChartCard title={t('reports.hoursEstVsLogged')}>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={hours ?? []}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />

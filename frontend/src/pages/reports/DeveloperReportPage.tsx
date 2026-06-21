@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -32,6 +33,7 @@ const PIE_COLORS = ['#10b981', '#eab308', '#f97316', '#ef4444']
 const CHART_TOOLTIP = { backgroundColor: '#1b1b23', border: '1px solid #2d2d38', borderRadius: 8, fontSize: 12 }
 
 export function DeveloperReportPage() {
+  const { t } = useTranslation()
   const timezone = useAuthStore((state) => state.user?.timezone ?? DEFAULT_TIMEZONE)
   const { projectId = '' } = useParams<{ projectId: string }>()
 
@@ -85,8 +87,8 @@ export function DeveloperReportPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-border shrink-0">
         <div>
-          <h1 className="text-base font-semibold text-fg">Developer Performance Report</h1>
-          <p className="text-xs text-fg-muted mt-0.5">Evaluate productivity, workload, overdue issues and logged hours.</p>
+          <h1 className="text-base font-semibold text-fg">{t('nav.developerReport')}</h1>
+          <p className="text-xs text-fg-muted mt-0.5">{t('pages.developerReportSubtitle')}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={exportCsv}><Download className="w-4 h-4" /> Export CSV</Button>
