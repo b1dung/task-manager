@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { Modal } from './Modal'
 import { Button } from './Button'
@@ -34,16 +34,16 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   const [typed, setTyped] = useState('')
 
-  // Reset the typed confirmation whenever the dialog (re)opens.
-  useEffect(() => {
-    if (open) setTyped('')
-  }, [open])
+  const close = () => {
+    setTyped('')
+    onClose()
+  }
 
   const matches = !requireText || typed.trim() === requireText
   const canConfirm = matches && !loading
 
   return (
-    <Modal open={open} onClose={() => !loading && onClose()} title={title} size="sm">
+    <Modal open={open} onClose={() => !loading && close()} title={title} size="sm">
       <div className="px-5 py-4 space-y-3">
         {message && <div className="text-sm text-fg">{message}</div>}
         {warning}
@@ -64,7 +64,7 @@ export function ConfirmDialog({
         )}
       </div>
       <div className="px-5 py-4 border-t border-border flex justify-end gap-3">
-        <Button variant="ghost" size="sm" disabled={loading} onClick={onClose}>{cancelLabel}</Button>
+        <Button variant="ghost" size="sm" disabled={loading} onClick={close}>{cancelLabel}</Button>
         <Button
           variant={danger ? 'danger' : 'primary'}
           size="sm"

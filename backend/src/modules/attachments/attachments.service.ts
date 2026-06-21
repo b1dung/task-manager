@@ -9,6 +9,7 @@ import { join } from 'path';
 import { Repository } from 'typeorm';
 import { Attachment } from '@/modules/attachments/entities/attachment.entity';
 import { Task } from '@/modules/tasks/entities/task.entity';
+import { assertFileSignature } from '@/common/files/file-signature';
 
 export interface ProjectAttachment {
   id: string;
@@ -98,6 +99,7 @@ export class AttachmentsService {
     uploaderId: string,
     file: Express.Multer.File,
   ): Promise<Attachment> {
+    await assertFileSignature(file);
     try {
       await this.assertTaskInProject(projectId, taskId);
     } catch (error) {

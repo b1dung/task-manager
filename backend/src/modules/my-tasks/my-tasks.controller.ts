@@ -19,7 +19,8 @@ export class MyTasksController {
 
   @Get()
   @ApiOperation({
-    summary: 'Tasks assigned to / created by the current user (across projects)',
+    summary:
+      'Tasks assigned to / created by the current user (across projects)',
   })
   async findAll(
     @CurrentUser() user: JwtPayload,

@@ -14,18 +14,30 @@ import { RefreshToken } from '@/modules/auth/entities/refresh-token.entity';
 import { InvitesService } from '@/modules/invites/invites.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/users.service';
+import { AccountToken } from '@/modules/auth/entities/account-token.entity';
+import { MailService } from '@/common/mail/mail.service';
 
 describe('AuthService', () => {
   let service: AuthService;
   let usersService: jest.Mocked<
     Pick<
       UsersService,
-      'create' | 'findByEmailWithPassword' | 'findById' | 'updateAvatar'
+      | 'create'
+      | 'findByEmailWithPassword'
+      | 'findById'
+      | 'updateAvatar'
+      | 'markEmailVerified'
     >
   >;
   let refreshTokenRepository: {
     findOne: jest.Mock;
     update: jest.Mock;
+    create: jest.Mock;
+    save: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let accountTokenRepository: {
+    delete: jest.Mock;
     create: jest.Mock;
     save: jest.Mock;
   };
@@ -43,6 +55,7 @@ describe('AuthService', () => {
     user.avatarUrl = null;
     user.role = UserRole.MEMBER;
     user.isActive = true;
+    user.emailVerifiedAt = null;
     user.createdAt = new Date();
     return Object.assign(user, overrides);
   };
@@ -53,10 +66,22 @@ describe('AuthService', () => {
       findByEmailWithPassword: jest.fn(),
       findById: jest.fn(),
       updateAvatar: jest.fn(),
+      markEmailVerified: jest.fn(),
     };
     refreshTokenRepository = {
       findOne: jest.fn(),
       update: jest.fn(),
+      create: jest.fn((entity) => entity),
+      save: jest.fn((entity) => Promise.resolve(entity)),
+      createQueryBuilder: jest.fn(() => ({
+        update: jest.fn().mockReturnThis(),
+        set: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        execute: jest.fn().mockResolvedValue({ affected: 1 }),
+      })),
+    };
+    accountTokenRepository = {
+      delete: jest.fn().mockResolvedValue({ affected: 0 }),
       create: jest.fn((entity) => entity),
       save: jest.fn((entity) => Promise.resolve(entity)),
     };
@@ -79,6 +104,11 @@ describe('AuthService', () => {
           provide: getRepositoryToken(RefreshToken),
           useValue: refreshTokenRepository,
         },
+        {
+          provide: getRepositoryToken(AccountToken),
+          useValue: accountTokenRepository,
+        },
+        { provide: MailService, useValue: { send: jest.fn() } },
       ],
     }).compile();
 
@@ -274,10 +304,7 @@ describe('AuthService', () => {
 
       const tokens = await service.refresh(payload, 'presented-token');
 
-      expect(refreshTokenRepository.update).toHaveBeenCalledWith(
-        'rt-1',
-        expect.objectContaining({ revokedAt: expect.any(Date) }),
-      );
+      expect(refreshTokenRepository.createQueryBuilder).toHaveBeenCalled();
       expect(tokens.accessToken).toBe('signed-token');
     });
   });

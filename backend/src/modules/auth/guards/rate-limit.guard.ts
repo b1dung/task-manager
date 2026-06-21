@@ -6,30 +6,37 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { Request } from 'express';
+import { createHash } from 'crypto';
+import { RedisService } from '@/common/redis/redis.service';
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
-  private static readonly attempts = new Map<
-    string,
-    { count: number; resetAt: number }
-  >();
+  constructor(private readonly redis: RedisService) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<Request>();
-    const now = Date.now();
-    const key = `${request.ip}:${request.method}:${request.path}`;
-    const current = RateLimitGuard.attempts.get(key);
-    if (!current || current.resetAt <= now) {
-      RateLimitGuard.attempts.set(key, { count: 1, resetAt: now + 60_000 });
-      return true;
-    }
-    if (current.count >= 10) {
+    const body = request.body as { email?: string; token?: string } | undefined;
+    const queryToken =
+      typeof request.query?.token === 'string' ? request.query.token : '';
+    const principal = (body?.email ?? body?.token ?? queryToken)
+      .trim()
+      .toLowerCase();
+    const identity = `${request.ip}:${request.method}:${request.path}:${principal}`;
+    const digest = createHash('sha256').update(identity).digest('hex');
+    const key = `rate-limit:${digest}`;
+    await this.redis.ensureConnected();
+    const count = await this.redis.client.eval(
+      "local n=redis.call('INCR',KEYS[1]); if n==1 then redis.call('EXPIRE',KEYS[1],ARGV[1]) end; return n",
+      1,
+      key,
+      60,
+    );
+    if (Number(count) > 10) {
       throw new HttpException(
         'Too many requests; try again in one minute',
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
-    current.count += 1;
     return true;
   }
 }

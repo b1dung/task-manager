@@ -25,13 +25,19 @@ import { SprintsModule } from '@/modules/sprints/sprints.module';
 import { TasksModule } from '@/modules/tasks/tasks.module';
 import { UsersModule } from '@/modules/users/users.module';
 import { WebsocketModule } from '@/modules/websocket/websocket.module';
+import { RedisModule } from '@/common/redis/redis.module';
+import { validateEnvironment } from '@/config/validate-env';
+import { MailModule } from '@/common/mail/mail.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env'],
+      validate: validateEnvironment,
     }),
+    RedisModule,
+    MailModule,
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
@@ -54,6 +60,8 @@ import { WebsocketModule } from '@/modules/websocket/websocket.module';
         redis: {
           host: config.get<string>('REDIS_HOST', 'localhost'),
           port: config.get<number>('REDIS_PORT', 6379),
+          password: config.get<string>('REDIS_PASSWORD') || undefined,
+          tls: config.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
         },
       }),
     }),

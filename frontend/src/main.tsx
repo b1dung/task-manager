@@ -6,6 +6,9 @@ import './index.css'
 import './i18n'
 import App from './App.tsx'
 import { queryClient } from './lib/queryClient'
+import { initSentry } from './lib/sentry'
+
+void initSentry()
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

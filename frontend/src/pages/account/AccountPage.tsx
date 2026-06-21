@@ -1,12 +1,13 @@
 import { useEffect, useState, useRef } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { Camera, Clock3, Loader2, User, Mail, Shield, Lock, KeyRound } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Archive, Camera, Clock3, Loader2, User, Mail, Shield, Lock, KeyRound, MonitorSmartphone } from 'lucide-react'
 import { usersApi } from '@/api/users'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { Avatar, Button, Select } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { currentTimePreview, DEFAULT_TIMEZONE, TIMEZONE_LABELS, TIMEZONE_OPTIONS, type UserTimezone } from '@/lib/timezones'
 import { useTranslation } from 'react-i18next'
+import { authApi } from '@/api/auth'
 
 const ROLE_LABEL: Record<string, string> = {
   admin: 'Admin', manager: 'Manager', member: 'Member', viewer: 'Viewer',
@@ -15,6 +16,9 @@ const ROLE_LABEL: Record<string, string> = {
 const inputCls =
   'w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent transition-shadow'
 const labelCls = 'flex items-center gap-1.5 text-xs font-medium text-fg-muted'
+
+// Tạm ẩn UI xác thực hai lớp (TOTP) — đổi thành true để bật lại. Code 2FA giữ nguyên.
+const SHOW_TWO_FACTOR = false
 
 function apiErrorMessage(err: unknown, fallback: string): string {
   const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message
@@ -26,6 +30,7 @@ export function AccountPage() {
   const { t } = useTranslation()
   const { user, setUser } = useAuthStore()
   const toast = useToast()
+  const queryClient = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ── Account information ─────────────────────────────────────────────────────
@@ -60,8 +65,8 @@ export function AccountPage() {
     onError: (err) => toast.error(apiErrorMessage(err, t('account.timezoneFailed'))),
   })
 
-  const MAX_SIZE_MB = 10
-  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  const MAX_SIZE_MB = 2
+  const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
   const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user) return
@@ -109,10 +114,57 @@ export function AccountPage() {
   const resetInfo = () => setFullName(user?.fullName ?? '')
   const resetPw = () => { setCurPw(''); setNewPw(''); setConfirmPw('') }
 
+  const { data: sessions = [] } = useQuery({
+    queryKey: ['auth', 'sessions'],
+    queryFn: authApi.sessions,
+  })
+  const { mutate: revokeSession, isPending: revokingSession } = useMutation({
+    mutationFn: authApi.revokeSession,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+  })
+  const { mutate: revokeAll, isPending: revokingAll } = useMutation({
+    mutationFn: authApi.revokeAllSessions,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['auth', 'sessions'] }),
+  })
+  const [twoFactorSetup, setTwoFactorSetup] = useState<{ secret: string; uri: string } | null>(null)
+  const [twoFactorCode, setTwoFactorCode] = useState('')
+  const setupTwoFactor = useMutation({
+    mutationFn: authApi.setupTwoFactor,
+    onSuccess: setTwoFactorSetup,
+  })
+  const enableTwoFactor = useMutation({
+    mutationFn: () => authApi.enableTwoFactor(twoFactorCode),
+    onSuccess: () => {
+      setUser({ ...user!, twoFactorEnabled: true })
+      setTwoFactorSetup(null)
+      setTwoFactorCode('')
+      toast.success('Đã bật xác thực hai lớp')
+    },
+  })
+  const disableTwoFactor = useMutation({
+    mutationFn: () => authApi.disableTwoFactor(twoFactorCode),
+    onSuccess: () => {
+      setUser({ ...user!, twoFactorEnabled: false })
+      setTwoFactorCode('')
+      toast.success('Đã tắt xác thực hai lớp')
+    },
+  })
+  const exportData = useMutation({
+    mutationFn: usersApi.exportOwnData,
+    onSuccess: (data) => {
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `taskboard-data-${new Date().toISOString().slice(0, 10)}.json`
+      anchor.click()
+      URL.revokeObjectURL(url)
+    },
+  })
+
   if (!user) return null
 
   return (
-    <div className="flex-1 overflow-y-auto bg-bg px-6 py-8">
+    <div className="h-full overflow-y-auto bg-bg px-6 py-8">
       <div className="mx-auto max-w-5xl space-y-6">
         <div>
           <h1 className="text-xl font-semibold text-fg">{t('account.title')}</h1>
@@ -150,7 +202,7 @@ export function AccountPage() {
                 <button onClick={() => fileRef.current?.click()} disabled={avatarUploading}
                   className="text-xs text-accent hover:underline disabled:opacity-50">{t('account.changeAvatar')}</button>
               </div>
-              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" className="hidden" onChange={handleAvatarChange} />
+              <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleAvatarChange} />
             </div>
 
             <div className="space-y-1.5">
@@ -236,6 +288,64 @@ export function AccountPage() {
             </Button>
           </div>
         </div>
+
+        <div className="rounded-xl border border-border bg-bg-surface lg:col-span-2">
+          <div className="flex items-center justify-between gap-3 px-4 py-3 sm:px-6 border-b border-border">
+            <div className="flex items-center gap-2">
+              <MonitorSmartphone className="w-4 h-4 text-fg-muted" />
+              <h2 className="text-sm font-semibold text-fg">Phiên đăng nhập</h2>
+            </div>
+            <Button variant="danger" size="sm" loading={revokingAll} disabled={!sessions.length} onClick={() => revokeAll()}>
+              Thu hồi tất cả
+            </Button>
+          </div>
+          <div className="divide-y divide-border">
+            {sessions.map((session) => (
+              <div key={session.id} className="flex items-center justify-between gap-4 px-4 py-3 sm:px-6">
+                <div>
+                  <p className="text-sm text-fg">Phiên tạo {new Date(session.createdAt).toLocaleString()}</p>
+                  <p className="text-xs text-fg-muted">Hết hạn {new Date(session.expiresAt).toLocaleString()}</p>
+                </div>
+                <Button variant="ghost" size="sm" disabled={revokingSession} onClick={() => revokeSession(session.id)}>Thu hồi</Button>
+              </div>
+            ))}
+            {!sessions.length && <p className="px-4 py-4 sm:px-6 text-sm text-fg-muted">Không có refresh session đang hoạt động.</p>}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-border bg-bg-surface lg:col-span-2">
+          <div className="flex items-center gap-2 px-4 py-3 sm:px-6 border-b border-border">
+            <Archive className="w-4 h-4 text-fg-muted" />
+            <h2 className="text-sm font-semibold text-fg">Dữ liệu cá nhân</h2>
+          </div>
+          <div className="p-4 sm:p-6">
+            <Button size="sm" loading={exportData.isPending} onClick={() => exportData.mutate()}>Tải dữ liệu của tôi (JSON)</Button>
+          </div>
+        </div>
+
+        {SHOW_TWO_FACTOR && (
+        <div className="rounded-xl border border-border bg-bg-surface lg:col-span-2">
+          <div className="flex items-center gap-2 px-4 py-3 sm:px-6 border-b border-border">
+            <Shield className="w-4 h-4 text-fg-muted" />
+            <h2 className="text-sm font-semibold text-fg">Xác thực hai lớp (TOTP)</h2>
+          </div>
+          <div className="p-4 sm:p-6 space-y-4">
+            <p className="text-sm text-fg-muted">Trạng thái: {user.twoFactorEnabled ? 'Đang bật' : 'Đang tắt'}</p>
+            {twoFactorSetup && (
+              <div className="rounded-lg bg-bg-subtle p-3 space-y-2">
+                <p className="text-xs text-fg-muted">Nhập secret sau vào ứng dụng Authenticator:</p>
+                <code className="block break-all text-sm text-fg">{twoFactorSetup.secret}</code>
+              </div>
+            )}
+            {(twoFactorSetup || user.twoFactorEnabled) && (
+              <input className={inputCls} inputMode="numeric" maxLength={6} value={twoFactorCode} onChange={(event) => setTwoFactorCode(event.target.value.replace(/\D/g, ''))} placeholder="000000" autoComplete="one-time-code" />
+            )}
+            {!user.twoFactorEnabled && !twoFactorSetup && <Button size="sm" loading={setupTwoFactor.isPending} onClick={() => setupTwoFactor.mutate()}>Thiết lập 2FA</Button>}
+            {twoFactorSetup && <Button size="sm" loading={enableTwoFactor.isPending} disabled={twoFactorCode.length !== 6} onClick={() => enableTwoFactor.mutate()}>Xác nhận và bật</Button>}
+            {user.twoFactorEnabled && <Button variant="danger" size="sm" loading={disableTwoFactor.isPending} disabled={twoFactorCode.length !== 6} onClick={() => disableTwoFactor.mutate()}>Tắt 2FA</Button>}
+          </div>
+        </div>
+        )}
         </div>
       </div>
     </div>

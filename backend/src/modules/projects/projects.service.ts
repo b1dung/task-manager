@@ -60,10 +60,7 @@ export class ProjectsService {
     return this.findById(project.id);
   }
 
-  async findAllForUser(
-    userId: string,
-    canViewAll = false,
-  ): Promise<Project[]> {
+  async findAllForUser(userId: string, canViewAll = false): Promise<Project[]> {
     // Super users (view_all_projects) see every project, even ones they were
     // never added to as a member. Archived/soft-deleted projects stay hidden.
     if (canViewAll) {
@@ -200,10 +197,12 @@ export class ProjectsService {
   }
 
   async countTasks(id: string): Promise<number> {
-    return this.projectRepository.manager.query(
-      `SELECT COUNT(*)::int AS c FROM tasks WHERE deleted_at IS NULL AND project_id = $1`,
-      [id],
-    ).then((rows: { c: number }[]) => rows[0]?.c ?? 0);
+    return this.projectRepository.manager
+      .query(
+        `SELECT COUNT(*)::int AS c FROM tasks WHERE deleted_at IS NULL AND project_id = $1`,
+        [id],
+      )
+      .then((rows: { c: number }[]) => rows[0]?.c ?? 0);
   }
 
   private async generateUniqueSlug(name: string): Promise<string> {

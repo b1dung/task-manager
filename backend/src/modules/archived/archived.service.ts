@@ -57,7 +57,9 @@ export class ArchivedService {
       : null;
   }
 
-  private async resolveUsers(ids: (string | null)[]): Promise<Map<string, User>> {
+  private async resolveUsers(
+    ids: (string | null)[],
+  ): Promise<Map<string, User>> {
     const unique = [...new Set(ids.filter((id): id is string => !!id))];
     if (unique.length === 0) return new Map();
     const users = await this.userRepository.find({ where: { id: In(unique) } });
@@ -88,7 +90,9 @@ export class ArchivedService {
       sprintId: t.sprintId,
       sprintName: t.sprint?.name ?? null,
       archivedAt: t.archivedAt,
-      archivedBy: this.toUserView(t.archivedBy ? byUsers.get(t.archivedBy) : null),
+      archivedBy: this.toUserView(
+        t.archivedBy ? byUsers.get(t.archivedBy) : null,
+      ),
     }));
   }
 
@@ -129,7 +133,9 @@ export class ArchivedService {
       memberCount: memberMap.get(p.id) ?? 0,
       owner: this.toUserView(p.owner),
       archivedAt: p.archivedAt,
-      archivedBy: this.toUserView(p.archivedBy ? byUsers.get(p.archivedBy) : null),
+      archivedBy: this.toUserView(
+        p.archivedBy ? byUsers.get(p.archivedBy) : null,
+      ),
     }));
   }
 }

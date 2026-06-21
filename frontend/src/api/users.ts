@@ -54,6 +54,10 @@ export const usersApi = {
       .then((r) => r.data.data),
 
   remove: (id: string) => apiClient.delete(`/users/${id}`),
+  exportOwnData: () =>
+    apiClient.get<{ success: true; data: Record<string, unknown> }>('/users/me/export').then((r) => r.data.data),
+  deleteOwnAccount: (currentPassword: string) =>
+    apiClient.delete('/users/me', { data: { currentPassword } }),
 
   changePassword: (id: string, dto: { currentPassword: string; newPassword: string }) =>
     apiClient.patch(`/users/${id}/password`, dto),

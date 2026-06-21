@@ -5,6 +5,11 @@ export class HardenTaskConcurrencyAndSearch1781100000000 implements MigrationInt
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS pg_trgm`);
+    // Older installations gained this column before migrations were introduced;
+    // fresh databases must create it before initializing the counter table.
+    await queryRunner.query(
+      `ALTER TABLE tasks ADD COLUMN IF NOT EXISTS task_number integer`,
+    );
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS project_task_counters (
         project_id uuid PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,

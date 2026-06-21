@@ -159,7 +159,12 @@ export class TasksController {
     @UserPermissions() permissions: string[],
   ): Promise<{ success: true; data: Task }> {
     await this.assertCanUpdate(projectId, id, user.sub, permissions);
-    const data = await this.tasksService.setArchived(projectId, id, true, user.sub);
+    const data = await this.tasksService.setArchived(
+      projectId,
+      id,
+      true,
+      user.sub,
+    );
     return { success: true, data };
   }
 

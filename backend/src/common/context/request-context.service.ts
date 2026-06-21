@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { AsyncLocalStorage } from 'async_hooks';
 
 export interface RequestContextStore {
+  requestId: string;
   userId: string | null;
   ipAddress: string | null;
 }
@@ -16,6 +17,10 @@ export class RequestContextService {
 
   get userId(): string | null {
     return this.storage.getStore()?.userId ?? null;
+  }
+
+  get requestId(): string | null {
+    return this.storage.getStore()?.requestId ?? null;
   }
 
   get ipAddress(): string | null {

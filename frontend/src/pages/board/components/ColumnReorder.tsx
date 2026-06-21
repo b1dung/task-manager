@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter,
@@ -47,7 +47,11 @@ export function ColumnReorder({
 }) {
   const { t } = useTranslation()
   const [items, setItems] = useState(columns)
-  useEffect(() => { setItems(columns) }, [columns])
+  const [source, setSource] = useState(columns)
+  if (source !== columns) {
+    setSource(columns)
+    setItems(columns)
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),

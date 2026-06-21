@@ -3,13 +3,20 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
-import { createHash, randomUUID } from 'crypto';
+import {
+  createCipheriv,
+  createDecipheriv,
+  createHash,
+  randomBytes,
+  randomUUID,
+} from 'crypto';
 import { IsNull, MoreThan, Repository } from 'typeorm';
 import { RefreshToken } from '@/modules/auth/entities/refresh-token.entity';
 import {
@@ -20,6 +27,12 @@ import { GoogleProfile } from '@/modules/auth/strategies/google.strategy';
 import { InvitesService } from '@/modules/invites/invites.service';
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/users.service';
+import {
+  AccountToken,
+  AccountTokenType,
+} from '@/modules/auth/entities/account-token.entity';
+import { MailService } from '@/common/mail/mail.service';
+import { createTotpSecret, verifyTotp } from '@/modules/auth/totp';
 
 const PENDING_APPROVAL_MESSAGE =
   'Tài khoản của bạn đang chờ quản trị viên duyệt và phân quyền';
@@ -30,6 +43,8 @@ export type RegisterResult =
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly usersService: UsersService,
     private readonly invitesService: InvitesService,
@@ -37,6 +52,9 @@ export class AuthService {
     private readonly configService: ConfigService,
     @InjectRepository(RefreshToken)
     private readonly refreshTokenRepository: Repository<RefreshToken>,
+    @InjectRepository(AccountToken)
+    private readonly accountTokenRepository: Repository<AccountToken>,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -66,6 +84,11 @@ export class AuthService {
         roleId: invite.roleId,
       });
       await this.invitesService.markAccepted(invite.id);
+      void this.sendEmailVerification(user).catch((error: Error) =>
+        this.logger.error(
+          `Unable to send verification email: ${error.message}`,
+        ),
+      );
       const tokens = await this.issueTokens(user);
       return { status: 'active', user, tokens };
     }
@@ -79,6 +102,9 @@ export class AuthService {
       fullName: params.fullName,
       isActive: false,
     });
+    void this.sendEmailVerification(user).catch((error: Error) =>
+      this.logger.error(`Unable to send verification email: ${error.message}`),
+    );
     return { status: 'pending', user };
   }
 
@@ -102,6 +128,52 @@ export class AuthService {
     return { user, tokens };
   }
 
+  async assertValidTwoFactor(userId: string, code?: string): Promise<void> {
+    const user = await this.usersService.findWithTwoFactorSecret(userId);
+    if (!user?.twoFactorEnabled) return;
+    if (
+      !user.twoFactorSecret ||
+      !code ||
+      !verifyTotp(this.decryptSecret(user.twoFactorSecret), code)
+    ) {
+      throw new UnauthorizedException(
+        'A valid two-factor authentication code is required',
+      );
+    }
+  }
+
+  async setupTwoFactor(
+    userId: string,
+    email: string,
+  ): Promise<{ secret: string; uri: string }> {
+    const secret = createTotpSecret();
+    await this.usersService.setTwoFactor(
+      userId,
+      this.encryptSecret(secret),
+      false,
+    );
+    const label = encodeURIComponent(`TaskBoard:${email}`);
+    const uri = `otpauth://totp/${label}?secret=${secret}&issuer=TaskBoard&digits=6&period=30`;
+    return { secret, uri };
+  }
+
+  async enableTwoFactor(userId: string, code: string): Promise<void> {
+    const user = await this.usersService.findWithTwoFactorSecret(userId);
+    if (
+      !user?.twoFactorSecret ||
+      !verifyTotp(this.decryptSecret(user.twoFactorSecret), code)
+    ) {
+      throw new BadRequestException('Invalid two-factor authentication code');
+    }
+    await this.usersService.setTwoFactor(userId, user.twoFactorSecret, true);
+  }
+
+  async disableTwoFactor(userId: string, code: string): Promise<void> {
+    await this.assertValidTwoFactor(userId, code);
+    await this.usersService.setTwoFactor(userId, null, false);
+    await this.revokeAll(userId);
+  }
+
   /** Google OAuth: existing active users sign in; brand-new accounts are created
    * pending (inactive) and must be approved, just like public registration. */
   async loginOrRegisterWithGoogle(
@@ -122,6 +194,8 @@ export class AuthService {
         fullName: profile.fullName || profile.email,
         isActive: false,
       });
+      await this.usersService.markEmailVerified(user.id);
+      user.emailVerifiedAt = new Date();
       if (profile.avatarUrl) {
         user = await this.usersService.updateAvatar(user.id, profile.avatarUrl);
       }
@@ -150,9 +224,18 @@ export class AuthService {
       throw new UnauthorizedException('Refresh token is invalid or expired');
     }
 
-    await this.refreshTokenRepository.update(stored.id, {
-      revokedAt: new Date(),
-    });
+    const rotation = await this.refreshTokenRepository
+      .createQueryBuilder()
+      .update(RefreshToken)
+      .set({ revokedAt: new Date() })
+      .where('id = :id AND revoked_at IS NULL AND expires_at > NOW()', {
+        id: stored.id,
+      })
+      .execute();
+    if (rotation.affected !== 1) {
+      await this.revokeAll(payload.sub);
+      throw new UnauthorizedException('Refresh token reuse detected');
+    }
 
     const user = await this.usersService.findById(payload.sub);
     if (!user.isActive) {
@@ -167,6 +250,127 @@ export class AuthService {
       { userId, tokenHash },
       { revokedAt: new Date() },
     );
+  }
+
+  async listSessions(userId: string): Promise<RefreshToken[]> {
+    return this.refreshTokenRepository.find({
+      where: { userId, revokedAt: IsNull(), expiresAt: MoreThan(new Date()) },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async revokeSession(userId: string, sessionId: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      { id: sessionId, userId },
+      { revokedAt: new Date() },
+    );
+  }
+
+  async revokeAll(userId: string): Promise<void> {
+    await this.refreshTokenRepository.update(
+      { userId, revokedAt: IsNull() },
+      { revokedAt: new Date() },
+    );
+  }
+
+  async requestPasswordReset(email: string): Promise<void> {
+    const user = await this.usersService.findByEmailWithPassword(
+      email.trim().toLowerCase(),
+    );
+    if (!user) return;
+    const token = await this.createAccountToken(user.id, 'password_reset', 30);
+    const frontend = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:5173',
+    );
+    await this.mailService.send(
+      user.email,
+      'Reset your TaskBoard password',
+      `Reset your password: ${frontend}/reset-password?token=${encodeURIComponent(token)}`,
+    );
+  }
+
+  async resetPassword(token: string, password: string): Promise<void> {
+    const accountToken = await this.consumeAccountToken(
+      token,
+      'password_reset',
+    );
+    await this.usersService.setPassword(accountToken.userId, password);
+    await this.revokeAll(accountToken.userId);
+  }
+
+  async sendEmailVerification(user: User): Promise<void> {
+    if (user.emailVerifiedAt) return;
+    const token = await this.createAccountToken(
+      user.id,
+      'email_verification',
+      24 * 60,
+    );
+    const frontend = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:5173',
+    );
+    await this.mailService.send(
+      user.email,
+      'Verify your TaskBoard email',
+      `Verify your email: ${frontend}/verify-email?token=${encodeURIComponent(token)}`,
+    );
+  }
+
+  async verifyEmail(token: string): Promise<void> {
+    const accountToken = await this.consumeAccountToken(
+      token,
+      'email_verification',
+    );
+    await this.usersService.markEmailVerified(accountToken.userId);
+  }
+
+  private async createAccountToken(
+    userId: string,
+    type: AccountTokenType,
+    ttlMinutes: number,
+  ): Promise<string> {
+    await this.accountTokenRepository.delete({
+      userId,
+      type,
+      usedAt: IsNull(),
+    });
+    const token = randomBytes(32).toString('hex');
+    await this.accountTokenRepository.save(
+      this.accountTokenRepository.create({
+        userId,
+        type,
+        tokenHash: this.hashToken(token),
+        expiresAt: new Date(Date.now() + ttlMinutes * 60_000),
+        usedAt: null,
+      }),
+    );
+    return token;
+  }
+
+  private async consumeAccountToken(
+    token: string,
+    type: AccountTokenType,
+  ): Promise<AccountToken> {
+    const tokenHash = this.hashToken(token);
+    const found = await this.accountTokenRepository
+      .createQueryBuilder('token')
+      .addSelect('token.tokenHash')
+      .where('token.tokenHash = :tokenHash', { tokenHash })
+      .andWhere('token.type = :type', { type })
+      .andWhere('token.usedAt IS NULL')
+      .andWhere('token.expiresAt > NOW()')
+      .getOne();
+    if (!found) throw new BadRequestException('Token is invalid or expired');
+    const result = await this.accountTokenRepository
+      .createQueryBuilder()
+      .update(AccountToken)
+      .set({ usedAt: new Date() })
+      .where('id = :id AND used_at IS NULL', { id: found.id })
+      .execute();
+    if (result.affected !== 1)
+      throw new BadRequestException('Token has already been used');
+    return found;
   }
 
   private async issueTokens(user: User): Promise<AuthTokens> {
@@ -226,5 +430,41 @@ export class AuthService {
 
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
+  }
+
+  private encryptionKey(): Buffer {
+    return createHash('sha256')
+      .update(
+        this.configService.get<string>(
+          'TWO_FACTOR_ENCRYPTION_KEY',
+          this.configService.get<string>(
+            'JWT_REFRESH_SECRET',
+            'dev_refresh_secret',
+          ),
+        ),
+      )
+      .digest();
+  }
+
+  private encryptSecret(secret: string): string {
+    const iv = randomBytes(12);
+    const cipher = createCipheriv('aes-256-gcm', this.encryptionKey(), iv);
+    const encrypted = Buffer.concat([
+      cipher.update(secret, 'utf8'),
+      cipher.final(),
+    ]);
+    return `${iv.toString('base64')}:${cipher.getAuthTag().toString('base64')}:${encrypted.toString('base64')}`;
+  }
+
+  private decryptSecret(value: string): string {
+    const [iv, tag, encrypted] = value
+      .split(':')
+      .map((part) => Buffer.from(part, 'base64'));
+    const decipher = createDecipheriv('aes-256-gcm', this.encryptionKey(), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([
+      decipher.update(encrypted),
+      decipher.final(),
+    ]).toString('utf8');
   }
 }

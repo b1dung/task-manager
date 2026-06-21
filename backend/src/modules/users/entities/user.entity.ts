@@ -45,6 +45,20 @@ export class User {
   @Column({ name: 'is_active', default: true })
   isActive!: boolean;
 
+  @Column({ name: 'email_verified_at', type: 'timestamptz', nullable: true })
+  emailVerifiedAt!: Date | null;
+
+  @Column({ name: 'two_factor_enabled', default: false })
+  twoFactorEnabled!: boolean;
+
+  @Column({
+    name: 'two_factor_secret',
+    type: 'varchar',
+    nullable: true,
+    select: false,
+  })
+  twoFactorSecret!: string | null;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt!: Date;
 }

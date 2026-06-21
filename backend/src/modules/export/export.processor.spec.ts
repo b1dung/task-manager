@@ -62,6 +62,9 @@ jest.mock('fs', () => ({
 }));
 jest.mock('fs/promises', () => ({
   mkdir: jest.fn().mockResolvedValue(undefined),
+  readdir: jest.fn().mockResolvedValue([]),
+  stat: jest.fn(),
+  unlink: jest.fn(),
 }));
 
 describe('ExportProcessor', () => {

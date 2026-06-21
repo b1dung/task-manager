@@ -8,6 +8,7 @@ import { Request } from 'express';
 import { Observable } from 'rxjs';
 import { RequestContextService } from '@/common/context/request-context.service';
 import { JwtPayload } from '@/modules/auth/interfaces/jwt-payload.interface';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class RequestContextInterceptor implements NestInterceptor {
@@ -17,7 +18,15 @@ export class RequestContextInterceptor implements NestInterceptor {
     const request = context
       .switchToHttp()
       .getRequest<Request & { user?: JwtPayload }>();
+    const response = context.switchToHttp().getResponse();
+    const supplied = request.headers['x-request-id'];
+    const requestId =
+      typeof supplied === 'string' && /^[A-Za-z0-9._-]{1,128}$/.test(supplied)
+        ? supplied
+        : randomUUID();
+    response.setHeader('X-Request-Id', requestId);
     const store = {
+      requestId,
       userId: request.user?.sub ?? null,
       ipAddress: request.ip ?? null,
     };

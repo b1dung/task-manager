@@ -10,9 +10,20 @@ import { format, subDays } from 'date-fns'
 import { CheckCircle2, ListTodo, Percent, Clock, AlertTriangle, Timer, Gauge, Download, Printer } from 'lucide-react'
 import { reportsApi, type DeveloperGrade, type DevReportParams } from '@/api/reports'
 import { membersApi } from '@/api/members'
+import { projectsApi } from '@/api/projects'
 import { Avatar, Button, Skeleton, EmptyState, PriorityBadge, StatusBadge } from '@/components/ui'
+import { TaskDetailModal } from '@/pages/board/components/TaskDetailModal'
 import { useAuthStore } from '@/stores/useAuthStore'
 import { DEFAULT_TIMEZONE, formatZonedDate } from '@/lib/timezones'
+
+const TASK_PAGE_SIZE = 20
+
+function getProjectKey(name?: string | null): string {
+  const words = (name ?? '').trim().split(/\s+/).filter(Boolean)
+  return words.length > 1
+    ? words.map((w) => w[0]).join('').toUpperCase()
+    : (words[0] ?? 'TASK').slice(0, 5).toUpperCase()
+}
 
 type Period = 'week' | 'month' | 'quarter' | 'year' | 'custom'
 const PERIOD_DAYS: Record<Exclude<Period, 'custom'>, number> = { week: 7, month: 30, quarter: 90, year: 365 }
@@ -51,11 +62,35 @@ export function DeveloperReportPage() {
     enabled: !!projectId,
   })
 
+  const { data: project } = useQuery({
+    queryKey: ['project', projectId],
+    queryFn: () => projectsApi.get(projectId),
+    enabled: !!projectId,
+    staleTime: 10 * 60_000,
+  })
+  const projectKey = project ? getProjectKey(project.name) : 'TASK'
+
   const { data, isLoading } = useQuery({
     queryKey: ['developer-report', projectId, from, to, userId, priority],
     queryFn: () => reportsApi.developerReport(projectId, params),
     enabled: !!projectId,
   })
+
+  // Task Details: open the detail modal on row click + paginate (20 / page).
+  const [openTaskId, setOpenTaskId] = useState<string | null>(null)
+  const [taskPage, setTaskPage] = useState(1)
+
+  // Reset to the first page whenever the filters (and thus the dataset) change.
+  const taskFilterKey = `${from}|${to}|${userId}|${priority}`
+  const [taskFilterSeen, setTaskFilterSeen] = useState(taskFilterKey)
+  if (taskFilterSeen !== taskFilterKey) {
+    setTaskFilterSeen(taskFilterKey)
+    setTaskPage(1)
+  }
+
+  const taskDetails = data?.taskDetails ?? []
+  const taskTotalPages = Math.max(1, Math.ceil(taskDetails.length / TASK_PAGE_SIZE))
+  const pagedTasks = taskDetails.slice((taskPage - 1) * TASK_PAGE_SIZE, taskPage * TASK_PAGE_SIZE)
 
   const applyPeriod = (p: Exclude<Period, 'custom'>) => {
     const newTo = format(new Date(), 'yyyy-MM-dd')
@@ -269,9 +304,13 @@ export function DeveloperReportPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data!.taskDetails.map((t) => (
-                    <tr key={t.id} className="border-t border-border hover:bg-bg-subtle/50">
-                      <td className="px-4 py-2 max-w-xs"><span className="text-fg truncate block">{t.title}</span></td>
+                  {pagedTasks.map((t) => (
+                    <tr
+                      key={t.id}
+                      onClick={() => setOpenTaskId(t.id)}
+                      className="border-t border-border hover:bg-bg-subtle/50 cursor-pointer"
+                    >
+                      <td className="px-4 py-2 max-w-xs"><span className="text-accent hover:underline truncate block">{t.title}</span></td>
                       <td className="px-4 py-2"><PriorityBadge priority={t.priority} /></td>
                       <td className="px-4 py-2"><StatusBadge status={t.status} /></td>
                       <td className="px-4 py-2 text-fg-muted">{t.estimatedHours ?? '—'}</td>
@@ -293,8 +332,30 @@ export function DeveloperReportPage() {
               </table>
             </div>
           )}
+          {taskDetails.length > 0 && (
+            <div className="flex items-center justify-between gap-3 px-5 py-3 border-t border-border text-xs text-fg-muted">
+              <span>{taskDetails.length} tasks</span>
+              {taskTotalPages > 1 && (
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" disabled={taskPage <= 1} onClick={() => setTaskPage((p) => Math.max(1, p - 1))}>{t('activity.prev')}</Button>
+                  <span>{t('activity.page', { page: taskPage })} / {taskTotalPages}</span>
+                  <Button variant="outline" size="sm" disabled={taskPage >= taskTotalPages} onClick={() => setTaskPage((p) => Math.min(taskTotalPages, p + 1))}>{t('activity.next')}</Button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      <TaskDetailModal
+        task={null}
+        taskId={openTaskId}
+        projectId={projectId}
+        projectKey={projectKey}
+        open={!!openTaskId}
+        onClose={() => setOpenTaskId(null)}
+        onOpenTask={(id) => setOpenTaskId(id)}
+      />
     </div>
   )
 }

@@ -128,9 +128,10 @@ export class ManageProjectsController {
   @Get(':id/members')
   @RequirePermissions('edit_project')
   @ApiOperation({ summary: 'List members of any project' })
-  async members(
-    @Param('id', ParseUUIDPipe) id: string,
-  ): Promise<{ success: true; data: (ProjectMember & { taskCount: number })[] }> {
+  async members(@Param('id', ParseUUIDPipe) id: string): Promise<{
+    success: true;
+    data: (ProjectMember & { taskCount: number })[];
+  }> {
     const data = await this.membersService.findAll(id);
     return { success: true, data };
   }

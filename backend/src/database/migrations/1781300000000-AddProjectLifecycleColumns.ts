@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddProjectLifecycleColumns1781300000000
-  implements MigrationInterface
-{
+export class AddProjectLifecycleColumns1781300000000 implements MigrationInterface {
   name = 'AddProjectLifecycleColumns1781300000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

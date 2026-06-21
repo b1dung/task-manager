@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect, type ComponentType } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { AppLayout } from '@/layout/AppLayout'
 import { rolesApi } from '@/api/roles'
@@ -9,26 +9,34 @@ import { ErrorBoundary } from '@/components/ErrorBoundary'
 import { applyTheme } from '@/lib/themes'
 import i18n from '@/i18n'
 import { useTranslation } from 'react-i18next'
-import { LoginPage } from '@/pages/auth/LoginPage'
-import { RegisterPage } from '@/pages/auth/RegisterPage'
-import { OAuthCallbackPage } from '@/pages/auth/OAuthCallbackPage'
-import { ProjectsPage } from '@/pages/projects/ProjectsPage'
-import { ManageProjectsPage } from '@/pages/projects/ManageProjectsPage'
-import { MyTasksPage } from '@/pages/my-tasks/MyTasksPage'
-import { SettingsPage } from '@/pages/settings/SettingsPage'
-import { BoardPage } from '@/pages/board/BoardPage'
-import { SummaryPage } from '@/pages/summary/SummaryPage'
-import { CalendarPage } from '@/pages/calendar/CalendarPage'
-import { TeamPage } from '@/pages/team/TeamPage'
-import { RolesPermissionsPage } from '@/pages/roles/RolesPermissionsPage'
-import { UserManagementPage } from '@/pages/users/UserManagementPage'
-import { ReportsPage } from '@/pages/reports/ReportsPage'
-import { DeveloperReportPage } from '@/pages/reports/DeveloperReportPage'
-import { NotificationsPage } from '@/pages/notifications/NotificationsPage'
-import { ActivityPage } from '@/pages/activity/ActivityPage'
-import { AttachmentsPage } from '@/pages/attachments/AttachmentsPage'
-import { ArchivedPage } from '@/pages/archived/ArchivedPage'
-import { AccountPage } from '@/pages/account/AccountPage'
+
+function lazyNamed<T extends Record<string, ComponentType>>(loader: () => Promise<T>, name: keyof T) {
+  return lazy(async () => ({ default: (await loader())[name] }))
+}
+
+const LoginPage = lazyNamed(() => import('@/pages/auth/LoginPage'), 'LoginPage')
+const RegisterPage = lazyNamed(() => import('@/pages/auth/RegisterPage'), 'RegisterPage')
+const OAuthCallbackPage = lazyNamed(() => import('@/pages/auth/OAuthCallbackPage'), 'OAuthCallbackPage')
+const ForgotPasswordPage = lazyNamed(() => import('@/pages/auth/ForgotPasswordPage'), 'ForgotPasswordPage')
+const ResetPasswordPage = lazyNamed(() => import('@/pages/auth/ResetPasswordPage'), 'ResetPasswordPage')
+const VerifyEmailPage = lazyNamed(() => import('@/pages/auth/VerifyEmailPage'), 'VerifyEmailPage')
+const ProjectsPage = lazyNamed(() => import('@/pages/projects/ProjectsPage'), 'ProjectsPage')
+const ManageProjectsPage = lazyNamed(() => import('@/pages/projects/ManageProjectsPage'), 'ManageProjectsPage')
+const MyTasksPage = lazyNamed(() => import('@/pages/my-tasks/MyTasksPage'), 'MyTasksPage')
+const SettingsPage = lazyNamed(() => import('@/pages/settings/SettingsPage'), 'SettingsPage')
+const BoardPage = lazyNamed(() => import('@/pages/board/BoardPage'), 'BoardPage')
+const SummaryPage = lazyNamed(() => import('@/pages/summary/SummaryPage'), 'SummaryPage')
+const CalendarPage = lazyNamed(() => import('@/pages/calendar/CalendarPage'), 'CalendarPage')
+const TeamPage = lazyNamed(() => import('@/pages/team/TeamPage'), 'TeamPage')
+const RolesPermissionsPage = lazyNamed(() => import('@/pages/roles/RolesPermissionsPage'), 'RolesPermissionsPage')
+const UserManagementPage = lazyNamed(() => import('@/pages/users/UserManagementPage'), 'UserManagementPage')
+const ReportsPage = lazyNamed(() => import('@/pages/reports/ReportsPage'), 'ReportsPage')
+const DeveloperReportPage = lazyNamed(() => import('@/pages/reports/DeveloperReportPage'), 'DeveloperReportPage')
+const NotificationsPage = lazyNamed(() => import('@/pages/notifications/NotificationsPage'), 'NotificationsPage')
+const ActivityPage = lazyNamed(() => import('@/pages/activity/ActivityPage'), 'ActivityPage')
+const AttachmentsPage = lazyNamed(() => import('@/pages/attachments/AttachmentsPage'), 'AttachmentsPage')
+const ArchivedPage = lazyNamed(() => import('@/pages/archived/ArchivedPage'), 'ArchivedPage')
+const AccountPage = lazyNamed(() => import('@/pages/account/AccountPage'), 'AccountPage')
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -86,12 +94,16 @@ export default function App() {
 
   return (
     <ErrorBoundary>
+    <Suspense fallback={<div className="min-h-full grid place-items-center text-sm text-fg-muted">Loading…</div>}>
     <BrowserRouter>
       <DocumentTitle />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         <Route
           element={
@@ -145,6 +157,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </BrowserRouter>
+    </Suspense>
     </ErrorBoundary>
   )
 }

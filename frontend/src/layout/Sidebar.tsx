@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import {
   LayoutGrid, LayoutDashboard, Calendar, Users, BarChart2, Gauge, Paperclip, Bell, Activity, ShieldCheck, UserCog, FolderCog, Archive, ListChecks, Settings as SettingsIcon,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
@@ -268,12 +268,12 @@ function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => v
     register,
     handleSubmit,
     setValue,
-    watch,
+    control,
     reset,
     formState: { errors },
   } = useForm<CreateForm>({ defaultValues: { name: '', key: '', description: '' } })
 
-  const name = watch('name')
+  const name = useWatch({ control, name: 'name' })
 
   useEffect(() => {
     if (name) setValue('key', slugify(name))
@@ -474,36 +474,36 @@ export function Sidebar() {
               : <><ChevronLeft className="h-4 w-4" /><span>{t('nav.collapse')}</span></>}
           </button>
 
-          {user && (
-            <div className={cn('flex items-center gap-1', sidebarCollapsed && 'flex-col')}>
-              <Tooltip content={`${user.fullName} — Tài khoản`} side="right" disabled={!sidebarCollapsed}>
-                <button
-                  onClick={() => navigate('/account')}
-                  className={cn(
-                    'flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors',
-                    sidebarCollapsed && 'justify-center px-2 flex-none w-full',
-                  )}
-                >
-                  <Avatar name={user.fullName} avatarUrl={user.avatarUrl} size="xs" />
-                  {!sidebarCollapsed && (
-                    <span className="flex-1 truncate text-left">{user.fullName}</span>
-                  )}
-                </button>
-              </Tooltip>
+          {/*{user && (*/}
+          {/*  <div className={cn('flex items-center gap-1', sidebarCollapsed && 'flex-col')}>*/}
+          {/*    <Tooltip content={`${user.fullName} — Tài khoản`} side="right" disabled={!sidebarCollapsed}>*/}
+          {/*      <button*/}
+          {/*        onClick={() => navigate('/account')}*/}
+          {/*        className={cn(*/}
+          {/*          'flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-fg-muted hover:text-fg hover:bg-bg-subtle transition-colors',*/}
+          {/*          sidebarCollapsed && 'justify-center px-2 flex-none w-full',*/}
+          {/*        )}*/}
+          {/*      >*/}
+          {/*        <Avatar name={user.fullName} avatarUrl={user.avatarUrl} size="xs" />*/}
+          {/*        {!sidebarCollapsed && (*/}
+          {/*          <span className="flex-1 truncate text-left">{user.fullName}</span>*/}
+          {/*        )}*/}
+          {/*      </button>*/}
+          {/*    </Tooltip>*/}
 
-              <Tooltip content={t('nav.logout')} side="right">
-                <button
-                  onClick={handleLogout}
-                  className={cn(
-                    'flex shrink-0 items-center justify-center rounded-lg p-2 text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors',
-                  )}
-                  title={t('nav.logout')}
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                </button>
-              </Tooltip>
-            </div>
-          )}
+          {/*    <Tooltip content={t('nav.logout')} side="right">*/}
+          {/*      <button*/}
+          {/*        onClick={handleLogout}*/}
+          {/*        className={cn(*/}
+          {/*          'flex shrink-0 items-center justify-center rounded-lg p-2 text-fg-muted hover:text-danger hover:bg-danger/10 transition-colors',*/}
+          {/*        )}*/}
+          {/*        title={t('nav.logout')}*/}
+          {/*      >*/}
+          {/*        <LogOut className="h-3.5 w-3.5" />*/}
+          {/*      </button>*/}
+          {/*    </Tooltip>*/}
+          {/*  </div>*/}
+          {/*)}*/}
         </div>
       </aside>
 

@@ -9,9 +9,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('App', () => {
-  it('redirects unauthenticated users to login page', () => {
+  it('redirects unauthenticated users to login page', async () => {
     render(<App />, { wrapper })
     // Unauthenticated → redirects to /login which shows the login form
-    expect(screen.getByRole('button', { name: /log in/i })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /log in/i })).toBeInTheDocument()
   })
 })

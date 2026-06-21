@@ -28,6 +28,7 @@ import { Invite } from '@/modules/invites/entities/invite.entity';
 import { InvitesService } from '@/modules/invites/invites.service';
 import { RateLimitGuard } from '@/modules/auth/guards/rate-limit.guard';
 import { RolesService } from '@/modules/roles/roles.service';
+import { MailService } from '@/common/mail/mail.service';
 
 interface InviteView {
   id: string;
@@ -45,6 +46,7 @@ export class InvitesController {
     private readonly invitesService: InvitesService,
     private readonly configService: ConfigService,
     private readonly rolesService: RolesService,
+    private readonly mailService: MailService,
   ) {}
 
   private toView(invite: Invite): InviteView {
@@ -92,9 +94,15 @@ export class InvitesController {
       dto.roleId ?? null,
       user.sub,
     );
+    const link = this.buildLink(token);
+    await this.mailService.send(
+      invite.email,
+      'You were invited to TaskBoard',
+      `Complete your registration: ${link}`,
+    );
     return {
       success: true,
-      data: { ...this.toView(invite), link: this.buildLink(token) },
+      data: { ...this.toView(invite), link },
     };
   }
 

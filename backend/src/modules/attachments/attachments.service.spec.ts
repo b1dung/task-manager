@@ -8,6 +8,13 @@ import { Task } from '@/modules/tasks/entities/task.entity';
 
 jest.mock('fs/promises', () => ({
   unlink: jest.fn(),
+  open: jest.fn().mockResolvedValue({
+    read: jest.fn((buffer: Buffer) => {
+      Buffer.from('%PDF-1.7').copy(buffer);
+      return { bytesRead: 8, buffer };
+    }),
+    close: jest.fn(),
+  }),
 }));
 
 describe('AttachmentsService', () => {

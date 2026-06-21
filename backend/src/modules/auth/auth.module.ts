@@ -12,12 +12,13 @@ import { JwtStrategy } from '@/modules/auth/strategies/jwt.strategy';
 import { LocalStrategy } from '@/modules/auth/strategies/local.strategy';
 import { InvitesModule } from '@/modules/invites/invites.module';
 import { UsersModule } from '@/modules/users/users.module';
+import { AccountToken } from '@/modules/auth/entities/account-token.entity';
 
 @Module({
   imports: [
     ConfigModule,
     PassportModule,
-    TypeOrmModule.forFeature([RefreshToken]),
+    TypeOrmModule.forFeature([RefreshToken, AccountToken]),
     UsersModule,
     InvitesModule,
     JwtModule.registerAsync({

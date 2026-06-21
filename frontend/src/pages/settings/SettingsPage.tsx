@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
@@ -50,15 +50,14 @@ export function SettingsPage() {
   const [showArchive, setShowArchive] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [showTransfer, setShowTransfer] = useState(false)
-
-  useEffect(() => {
-    if (project) {
-      setName(project.name)
-      setDescription(project.description ?? '')
-      const d = (project as { deadline?: string | null }).deadline
-      setDeadline(d ? d.slice(0, 10) : '')
-    }
-  }, [project])
+  const [loadedProjectId, setLoadedProjectId] = useState<string | null>(null)
+  if (project && loadedProjectId !== project.id) {
+    setLoadedProjectId(project.id)
+    setName(project.name)
+    setDescription(project.description ?? '')
+    const d = (project as { deadline?: string | null }).deadline
+    setDeadline(d ? d.slice(0, 10) : '')
+  }
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['project', projectId] })

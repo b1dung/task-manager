@@ -46,7 +46,9 @@ export class MyTasksService {
       qb.andWhere('task.assigneeId = :userId', { userId });
     }
     if (query.projectId) {
-      qb.andWhere('task.projectId = :projectId', { projectId: query.projectId });
+      qb.andWhere('task.projectId = :projectId', {
+        projectId: query.projectId,
+      });
     }
     if (query.status) {
       qb.andWhere('task.status IN (:...statuses)', {

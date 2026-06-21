@@ -12,6 +12,7 @@ export interface AuthUser {
   language?: import('@/i18n').AppLanguage
   appearance?: 'light' | 'midnight' | 'mint'
   timezone?: import('@/lib/timezones').UserTimezone
+  twoFactorEnabled?: boolean
 }
 
 interface AuthState {

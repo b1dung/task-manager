@@ -67,8 +67,8 @@ export function ArchivedPage() {
     staleTime: 10 * 60_000,
   })
   const projectKey = project ? getProjectKey(project.name) : 'TASK'
-  const tasks = data?.tasks ?? []
-  const projects = data?.projects ?? []
+  const tasks = useMemo(() => data?.tasks ?? [], [data?.tasks])
+  const projects = useMemo(() => data?.projects ?? [], [data?.projects])
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ['archived', projectId] })

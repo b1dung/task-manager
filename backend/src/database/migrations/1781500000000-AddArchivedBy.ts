@@ -13,7 +13,11 @@ export class AddArchivedBy1781500000000 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE "tasks" DROP COLUMN IF EXISTS "archived_by"`);
-    await queryRunner.query(`ALTER TABLE "projects" DROP COLUMN IF EXISTS "archived_by"`);
+    await queryRunner.query(
+      `ALTER TABLE "tasks" DROP COLUMN IF EXISTS "archived_by"`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE "projects" DROP COLUMN IF EXISTS "archived_by"`,
+    );
   }
 }

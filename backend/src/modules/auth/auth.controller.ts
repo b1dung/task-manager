@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Post,
+  Param,
+  ParseUUIDPipe,
   Req,
   Res,
   UseGuards,
@@ -30,6 +33,12 @@ import { JwtRefreshPayload } from '@/modules/auth/strategies/jwt-refresh.strateg
 import { User } from '@/modules/users/entities/user.entity';
 import { UsersService } from '@/modules/users/users.service';
 import { RateLimitGuard } from '@/modules/auth/guards/rate-limit.guard';
+import { RequestPasswordResetDto } from '@/modules/auth/dto/request-password-reset.dto';
+import { ResetPasswordDto } from '@/modules/auth/dto/reset-password.dto';
+import { VerifyEmailDto } from '@/modules/auth/dto/verify-email.dto';
+import { RefreshToken } from '@/modules/auth/entities/refresh-token.entity';
+import { LoginDto } from '@/modules/auth/dto/login.dto';
+import { TwoFactorCodeDto } from '@/modules/auth/dto/two-factor-code.dto';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -76,6 +85,10 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Authenticated with tokens' })
   async login(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const user = req.user as User;
+    await this.authService.assertValidTwoFactor(
+      user.id,
+      (req.body as LoginDto).otp,
+    );
     const { tokens } = await this.authService.login(user);
     this.setRefreshCookie(res, tokens.refreshToken);
     return {
@@ -124,6 +137,103 @@ export class AuthController {
   async me(@CurrentUser() user: JwtPayload) {
     const profile = await this.usersService.findById(user.sub);
     return { success: true, data: this.toPublicUser(profile) };
+  }
+
+  @Post('password/forgot')
+  @UseGuards(RateLimitGuard)
+  async forgotPassword(
+    @Body() dto: RequestPasswordResetDto,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.requestPasswordReset(dto.email);
+    return { success: true, data: null };
+  }
+
+  @Post('password/reset')
+  @UseGuards(RateLimitGuard)
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.resetPassword(dto.token, dto.password);
+    return { success: true, data: null };
+  }
+
+  @Post('email/verify')
+  @UseGuards(RateLimitGuard)
+  async verifyEmail(
+    @Body() dto: VerifyEmailDto,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.verifyEmail(dto.token);
+    return { success: true, data: null };
+  }
+
+  @Post('email/resend')
+  @UseGuards(JwtAuthGuard, RateLimitGuard)
+  async resendVerification(
+    @CurrentUser() payload: JwtPayload,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.sendEmailVerification(
+      await this.usersService.findById(payload.sub),
+    );
+    return { success: true, data: null };
+  }
+
+  @Get('sessions')
+  @UseGuards(JwtAuthGuard)
+  async sessions(
+    @CurrentUser() payload: JwtPayload,
+  ): Promise<{ success: true; data: RefreshToken[] }> {
+    return {
+      success: true,
+      data: await this.authService.listSessions(payload.sub),
+    };
+  }
+
+  @Delete('sessions/:id')
+  @UseGuards(JwtAuthGuard)
+  async revokeSession(
+    @CurrentUser() payload: JwtPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.revokeSession(payload.sub, id);
+    return { success: true, data: null };
+  }
+
+  @Delete('sessions')
+  @UseGuards(JwtAuthGuard)
+  async revokeAllSessions(
+    @CurrentUser() payload: JwtPayload,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.revokeAll(payload.sub);
+    return { success: true, data: null };
+  }
+
+  @Post('2fa/setup')
+  @UseGuards(JwtAuthGuard)
+  async setupTwoFactor(@CurrentUser() payload: JwtPayload) {
+    return {
+      success: true,
+      data: await this.authService.setupTwoFactor(payload.sub, payload.email),
+    };
+  }
+
+  @Post('2fa/enable')
+  @UseGuards(JwtAuthGuard, RateLimitGuard)
+  async enableTwoFactor(
+    @CurrentUser() payload: JwtPayload,
+    @Body() dto: TwoFactorCodeDto,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.enableTwoFactor(payload.sub, dto.code);
+    return { success: true, data: null };
+  }
+
+  @Post('2fa/disable')
+  @UseGuards(JwtAuthGuard, RateLimitGuard)
+  async disableTwoFactor(
+    @CurrentUser() payload: JwtPayload,
+    @Body() dto: TwoFactorCodeDto,
+  ): Promise<{ success: true; data: null }> {
+    await this.authService.disableTwoFactor(payload.sub, dto.code);
+    return { success: true, data: null };
   }
 
   @UseGuards(GoogleAuthGuard)

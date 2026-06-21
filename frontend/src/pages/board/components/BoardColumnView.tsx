@@ -11,7 +11,7 @@ import { TaskCard } from './TaskCard'
 
 // Preset palette for board columns. The chosen color is reused as the task's
 // status color (see StatusDropdown in TaskDetailModal).
-export const COLUMN_COLORS = [
+const COLUMN_COLORS = [
   '#6b7280', '#3b82f6', '#8b5cf6', '#10b981',
   '#f59e0b', '#ef4444', '#ec4899', '#14b8a6',
 ]

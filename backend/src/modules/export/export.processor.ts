@@ -2,7 +2,7 @@ import { Process, Processor } from '@nestjs/bull';
 import { Logger } from '@nestjs/common';
 import { Workbook } from 'exceljs';
 import { createWriteStream } from 'fs';
-import { mkdir } from 'fs/promises';
+import { mkdir, readdir, stat, unlink } from 'fs/promises';
 import { join } from 'path';
 // pdfkit ships a CommonJS `export =` with no esModuleInterop in this project's tsconfig,
 // so `import = require()` is the only way to get the constructor with correct typings.
@@ -44,6 +44,7 @@ export class ExportProcessor {
   async handleTasksExcelExport(
     job: Job<TasksExcelExportJob>,
   ): Promise<GeneratedExport> {
+    await this.cleanupExpiredExports();
     const { projectId, requesterId, filters } = job.data;
     const { data: tasks } = await this.tasksService.findAll(projectId, {
       ...filters,
@@ -65,6 +66,7 @@ export class ExportProcessor {
   async handleMonthlyReportPdfExport(
     job: Job<MonthlyReportPdfExportJob>,
   ): Promise<GeneratedExport> {
+    await this.cleanupExpiredExports();
     const { projectId, requesterId, query } = job.data;
     const [kpi, completionRate] = await Promise.all([
       this.reportsService.getMonthlyKpi(projectId, query),
@@ -176,5 +178,20 @@ export class ExportProcessor {
     });
     this.logger.log(`Export ready for ${recipientId}: ${fileUrl}`);
     return { fileName, fileUrl };
+  }
+
+  private async cleanupExpiredExports(): Promise<void> {
+    await mkdir(EXPORT_DIR, { recursive: true });
+    const cutoff = Date.now() - 24 * 60 * 60 * 1000;
+    const names = await readdir(EXPORT_DIR);
+    await Promise.all(
+      names.map(async (name) => {
+        const path = join(EXPORT_DIR, name);
+        const info = await stat(path).catch(() => null);
+        if (info?.isFile() && info.mtimeMs < cutoff) {
+          await unlink(path).catch(() => undefined);
+        }
+      }),
+    );
   }
 }

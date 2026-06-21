@@ -38,6 +38,8 @@ import { CreateUserDto } from '@/modules/users/dto/create-user.dto';
 import { UpdateUserDto } from '@/modules/users/dto/update-user.dto';
 import { User } from '@/modules/users/entities/user.entity';
 import { RolesService } from '@/modules/roles/roles.service';
+import { assertFileSignature } from '@/common/files/file-signature';
+import { DeleteAccountDto } from '@/modules/users/dto/delete-account.dto';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -48,6 +50,28 @@ export class UsersController {
     private readonly usersService: UsersService,
     private readonly rolesService: RolesService,
   ) {}
+
+  @Get('me/export')
+  async exportOwnData(
+    @CurrentUser() requester: JwtPayload,
+  ): Promise<{ success: true; data: Record<string, unknown> }> {
+    return {
+      success: true,
+      data: await this.usersService.exportOwnData(requester.sub),
+    };
+  }
+
+  @Delete('me')
+  async deleteOwnAccount(
+    @CurrentUser() requester: JwtPayload,
+    @Body() dto: DeleteAccountDto,
+  ): Promise<{ success: true; data: null }> {
+    await this.usersService.deleteOwnAccount(
+      requester.sub,
+      dto.currentPassword,
+    );
+    return { success: true, data: null };
+  }
 
   @Post()
   @RequirePermissions('manage_users')
@@ -71,13 +95,14 @@ export class UsersController {
     @CurrentUser() requester: JwtPayload,
   ): Promise<{ success: true; data: null }> {
     const target = await this.usersService.findById(id);
-    const targetRole =
-      await this.rolesService.getEffectivePermissions(target);
+    const targetRole = await this.rolesService.getEffectivePermissions(target);
     if (targetRole.roleKey === 'owner') {
       const actorRole =
         await this.rolesService.getEffectivePermissions(requester);
       if (actorRole.roleKey !== 'owner') {
-        throw new ForbiddenException('Only an owner can delete an owner account');
+        throw new ForbiddenException(
+          'Only an owner can delete an owner account',
+        );
       }
       const ownerRole = await this.rolesService.findByKey('owner');
       if (
@@ -231,6 +256,7 @@ export class UsersController {
     @UploadedFile() file: Express.Multer.File,
   ): Promise<{ success: true; data: User }> {
     if (!file) throw new BadRequestException('An avatar file is required');
+    await assertFileSignature(file);
     if (!permissions.includes('manage_users') && requester.sub !== id) {
       throw new ForbiddenException('You can only change your own avatar');
     }

@@ -11,17 +11,21 @@ import { Button, Input, Modal } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { useTranslation } from 'react-i18next'
 
-type FormData = { email: string; password: string }
+type FormData = { email: string; password: string; otp?: string }
 
 function errorStatus(err: unknown): number | undefined {
   return (err as { response?: { status?: number } })?.response?.status
 }
+
+// Tạm ẩn ô nhập mã 2FA — đổi thành true để bật lại. Logic 2FA giữ nguyên.
+const SHOW_TWO_FACTOR = false
 
 export function LoginPage() {
   const { t } = useTranslation()
   const schema = useMemo(() => z.object({
     email: z.string().email(t('auth.invalidEmail')),
     password: z.string().min(6, t('auth.passwordMin6')),
+    otp: z.string().regex(/^\d{6}$/, 'Mã 2FA phải có 6 chữ số').optional().or(z.literal('')),
   }), [t])
   const navigate = useNavigate()
   const { setAuth } = useAuthStore()
@@ -66,6 +70,16 @@ export function LoginPage() {
             error={errors.email?.message}
             autoComplete="email"
           />
+          {SHOW_TWO_FACTOR && (
+            <Input
+              {...register('otp')}
+              label="Mã 2FA (nếu đã bật)"
+              inputMode="numeric"
+              maxLength={6}
+              autoComplete="one-time-code"
+              error={errors.otp?.message}
+            />
+          )}
           <Input
             {...register('password')}
             label={t('auth.password')}
@@ -77,6 +91,9 @@ export function LoginPage() {
           <Button type="submit" variant="primary" className="w-full" loading={isPending}>
             {t('auth.login')}
           </Button>
+          <Link to="/forgot-password" className="block text-right text-xs text-accent hover:underline">
+            Quên mật khẩu?
+          </Link>
         </form>
 
         <p className="text-center text-sm text-fg-muted">

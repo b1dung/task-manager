@@ -17,7 +17,9 @@ export function useSocket(projectId?: string) {
         transports: ['websocket'],
       })
     }
-    setSocket(globalSocket)
+    const connected = () => setSocket(globalSocket)
+    globalSocket.on('connect', connected)
+    if (globalSocket.connected) queueMicrotask(connected)
 
     if (projectId) {
       globalSocket.emit('project:join', { projectId })
@@ -27,6 +29,7 @@ export function useSocket(projectId?: string) {
       if (projectId && globalSocket) {
         globalSocket.emit('project:leave', { projectId })
       }
+      globalSocket?.off('connect', connected)
     }
   }, [accessToken, projectId])
 
