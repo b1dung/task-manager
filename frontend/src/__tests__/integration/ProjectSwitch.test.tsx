@@ -50,9 +50,7 @@ vi.mock('@/api/auth', () => ({
   authApi: { logout: vi.fn().mockResolvedValue({}) },
 }))
 
-vi.mock('socket.io-client', () => ({
-  io: () => ({ on: vi.fn(), off: vi.fn(), emit: vi.fn(), disconnect: vi.fn() }),
-}))
+vi.mock('@/hooks/useSocket', () => ({ useSocket: () => null }))
 
 function renderSidebar(path = '/projects/proj-1/tasks') {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })

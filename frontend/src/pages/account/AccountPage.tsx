@@ -17,8 +17,7 @@ const inputCls =
   'w-full rounded-lg border border-border bg-bg-elevated px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:outline-none focus:ring-2 focus:ring-accent transition-shadow'
 const labelCls = 'flex items-center gap-1.5 text-xs font-medium text-fg-muted'
 
-// Tạm ẩn UI xác thực hai lớp (TOTP) — đổi thành true để bật lại. Code 2FA giữ nguyên.
-const SHOW_TWO_FACTOR = false
+const SHOW_TWO_FACTOR = true
 
 function apiErrorMessage(err: unknown, fallback: string): string {
   const msg = (err as { response?: { data?: { message?: string | string[] } } })?.response?.data?.message

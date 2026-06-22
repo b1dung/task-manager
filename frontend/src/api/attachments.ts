@@ -41,6 +41,9 @@ export const attachmentsApi = {
       form,
       {
         headers: { 'Content-Type': undefined },
+        // Large files (up to 250 MB) can take longer than the default 15s
+        // client timeout — disable it for uploads and rely on progress events.
+        timeout: 0,
         onUploadProgress: (e) => {
           if (onProgress && e.total) onProgress(Math.round((e.loaded / e.total) * 100))
         },

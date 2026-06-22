@@ -5,7 +5,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import {
   LayoutGrid, LayoutDashboard, Calendar, Users, BarChart2, Gauge, Paperclip, Bell, Activity, ShieldCheck, UserCog, FolderCog, Archive, ListChecks, Settings as SettingsIcon,
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
-  Plus, Check, Folder, LogOut, type LucideIcon,
+  Plus, Check, Folder, type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useUIStore } from '@/stores/useUIStore'
@@ -13,8 +13,7 @@ import { useAuthStore } from '@/stores/useAuthStore'
 import { usePermissions } from '@/hooks/usePermissions'
 import { projectsApi, type Project } from '@/api/projects'
 import { notificationsApi } from '@/api/notifications'
-import { authApi } from '@/api/auth'
-import { Avatar, Button, Input, Modal, Tooltip } from '@/components/ui'
+import { Button, Input, Modal, Tooltip } from '@/components/ui'
 import { useToast } from '@/hooks/useToast'
 import { useTranslation } from 'react-i18next'
 
@@ -91,9 +90,9 @@ function ProjectDropdown({
   canCreate: boolean
 }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const dropRef = useRef<HTMLDivElement>(null)
-  const navigate = useNavigate()
   const { projectId } = useParams()
   const setActiveProject = useUIStore((s) => s.setActiveProject)
 
@@ -367,9 +366,8 @@ function CreateProjectModal({ open, onClose }: { open: boolean; onClose: () => v
 export function Sidebar() {
   const { t } = useTranslation()
   const { projectId } = useParams()
-  const navigate = useNavigate()
   const { sidebarCollapsed, toggleSidebar } = useUIStore()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const permissions = usePermissions()
   const canCreateProject = permissions.includes('create_project')
   const [showCreate, setShowCreate] = useState(false)
@@ -381,12 +379,6 @@ export function Sidebar() {
     enabled: !!user,
   })
   const unread = unreadData?.count ?? 0
-
-  const handleLogout = async () => {
-    try { await authApi.logout() } catch { /* local logout still proceeds */ }
-    logout()
-    navigate('/login')
-  }
 
   const navCls = (isActive: boolean) =>
     cn(

@@ -17,8 +17,7 @@ function errorStatus(err: unknown): number | undefined {
   return (err as { response?: { status?: number } })?.response?.status
 }
 
-// Tạm ẩn ô nhập mã 2FA — đổi thành true để bật lại. Logic 2FA giữ nguyên.
-const SHOW_TWO_FACTOR = false
+const SHOW_TWO_FACTOR = true
 
 export function LoginPage() {
   const { t } = useTranslation()

@@ -55,7 +55,15 @@ export const useAuthStore = create<AuthState>()(
         }
         return state
       },
-      partialize: (s) => ({ user: s.user, isAuthenticated: s.isAuthenticated }),
+      // Persist the tokens too — otherwise a full page reload restores
+      // `isAuthenticated: true` but a null accessToken, so the first API call
+      // 401s → refresh → logout → bounce to /login.
+      partialize: (s) => ({
+        user: s.user,
+        accessToken: s.accessToken,
+        refreshToken: s.refreshToken,
+        isAuthenticated: s.isAuthenticated,
+      }),
     },
   ),
 )

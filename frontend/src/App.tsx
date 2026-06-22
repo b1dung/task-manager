@@ -37,6 +37,7 @@ const ActivityPage = lazyNamed(() => import('@/pages/activity/ActivityPage'), 'A
 const AttachmentsPage = lazyNamed(() => import('@/pages/attachments/AttachmentsPage'), 'AttachmentsPage')
 const ArchivedPage = lazyNamed(() => import('@/pages/archived/ArchivedPage'), 'ArchivedPage')
 const AccountPage = lazyNamed(() => import('@/pages/account/AccountPage'), 'AccountPage')
+const NotFoundPage = lazyNamed(() => import('@/pages/NotFoundPage'), 'NotFoundPage')
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -154,7 +155,9 @@ export default function App() {
         </Route>
 
         <Route path="/" element={<Navigate to="/projects" replace />} />
-        <Route path="*" element={<Navigate to="/projects" replace />} />
+        {/* Unknown URL → show the 404 page (do NOT redirect: that bounced
+            logged-in users through /projects → /login). */}
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </BrowserRouter>
     </Suspense>

@@ -92,14 +92,7 @@ vi.mock('@/stores/useUIStore', () => ({
   }),
 }))
 
-vi.mock('socket.io-client', () => ({
-  io: () => ({
-    on: vi.fn(),
-    off: vi.fn(),
-    emit: vi.fn(),
-    disconnect: vi.fn(),
-  }),
-}))
+vi.mock('@/hooks/useSocket', () => ({ useSocket: () => null }))
 
 function renderBoard() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
